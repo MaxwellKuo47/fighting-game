@@ -6,7 +6,7 @@ import { getCharacter } from '../characters.js';
 import { ULT_MAX } from '../constants.js';
 import { sceneX, sceneZ } from './coords.js';
 
-const HEAD_Y = 62;
+const HEAD_Y = 90;
 
 export function createHud({ stage, scene, camera }) {
   const css2d = new CSS2DRenderer();

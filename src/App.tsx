@@ -31,6 +31,20 @@ export function App() {
     return () => offs.forEach((off) => off());
   }, [controller]);
 
+  // 開發者模式：檢查 URL 參數 ?dev=true 或環境變數 VITE_DEV_MODE
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const devModeParam = params.get('dev');
+    const roleParam = params.get('role');
+    // @ts-ignore
+    const envDev = import.meta.env?.VITE_DEV_MODE;
+    const isDev = devModeParam === 'true' || envDev === 'true';
+    if (isDev) {
+      const charId = roleParam ? parseInt(roleParam, 10) : undefined;
+      setTimeout(() => controller.devStartGame(charId), 100);
+    }
+  }, [controller]);
+
   function handleSelectChar(charId: number) {
     setSelectedChar(charId);
     controller.selectChar(charId);

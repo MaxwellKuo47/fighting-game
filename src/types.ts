@@ -71,6 +71,7 @@ export interface GameController {
   joinRoom(name: string, code: string): void;
   selectChar(charId: number): void;
   startGame(): void;
+  devStartGame(charId?: number): void;
   returnToLobby(): void;
   leave(): void;
   attachCanvas(canvas: HTMLCanvasElement): void;

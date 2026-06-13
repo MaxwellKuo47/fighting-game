@@ -344,6 +344,48 @@ function createController(): GameController {
     if (role === 'host') hostStart();
   }
 
+  // ---------- 開發者模式：直接進入遊戲（指定或隨機角色）----------
+  function devStartGame(charId?: number) {
+    const DEV_MODE = true;
+    if (!DEV_MODE) return;
+
+    // 設定為房主
+    myName = 'Dev Player';
+    role = 'host';
+    selfId = 'dev-' + Math.random().toString(36).slice(2, 9);
+    roomCode = 'DEV';
+
+    // 生成隨機玩家（2-4個角色）
+    const numPlayers = Math.floor(Math.random() * 3) + 2; // 2-4 players
+    const allCharIds = Array.from({ length: 10 }, (_, i) => i); // 0-9 characters
+    lobby = [];
+
+    // 自己：使用指定的角色或隨機選取
+    let charForSelf: number;
+    if (charId !== undefined && charId >= 0 && charId < 10) {
+      charForSelf = charId;
+    } else {
+      charForSelf = allCharIds[Math.floor(Math.random() * allCharIds.length)];
+    }
+    lobby.push({ id: selfId, name: myName, charId: charForSelf, isHost: true });
+
+    // 其他玩家
+    for (let i = 1; i < numPlayers; i++) {
+      const randomChar = allCharIds[Math.floor(Math.random() * allCharIds.length)];
+      lobby.push({
+        id: 'dev-' + i,
+        name: `NPC ${i}`,
+        charId: randomChar,
+        isHost: false,
+      });
+    }
+
+    selectedChar = charForSelf;
+    emit('phase', 'game');
+    wantLoop = true;
+    hostStart();
+  }
+
   function returnToLobby() {
     if (role !== 'host') return;
     stopLoop();
@@ -379,6 +421,7 @@ function createController(): GameController {
     joinRoom,
     selectChar,
     startGame,
+    devStartGame,
     returnToLobby,
     leave,
     attachCanvas,

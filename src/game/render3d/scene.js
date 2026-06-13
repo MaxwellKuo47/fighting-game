@@ -40,10 +40,10 @@ export function createSceneManager(canvas) {
   if ('environmentIntensity' in scene) scene.environmentIntensity = 0.45;
   envScene.dispose();
 
-  const camera = new THREE.PerspectiveCamera(42, 16 / 9, 1, 8000);
-  // 固定全場框取 (不跟隨)；俯視傾斜約 50°
-  const camBase = new THREE.Vector3(0, 940, 780);
-  const camTarget = new THREE.Vector3(0, 36, -10);
+  const camera = new THREE.PerspectiveCamera(52, 16 / 9, 1, 8000);
+  // 固定全場框取 (不跟隨)；拉近視角；俯視傾斜更陡
+  const camBase = new THREE.Vector3(0, 600, 780);
+  const camTarget = new THREE.Vector3(0, 0, 0);
   camera.position.copy(camBase);
   camera.lookAt(camTarget);
 

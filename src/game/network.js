@@ -2,6 +2,8 @@
 // 房主 peer.id = 房號；加入者 peer.connect(房號)。
 // 訊息透過 reliable DataConnection 傳遞 (JSON 物件)。
 
+import { Peer } from 'peerjs';
+
 const HANDLER_NAMES = ['onOpen', 'onJoin', 'onLeave', 'onData', 'onError', 'onHostClose'];
 
 export function createNetwork() {
@@ -14,16 +16,9 @@ export function createNetwork() {
   const handlers = {};
   for (const n of HANDLER_NAMES) handlers[n] = () => {};
 
-  function ensurePeerLib() {
-    if (typeof window.Peer !== 'function') {
-      throw new Error('PeerJS 尚未載入，請確認 index.html 的 CDN script。');
-    }
-  }
-
   function host(roomId) {
-    ensurePeerLib();
     isHost = true;
-    peer = new window.Peer(roomId, { debug: 1 });
+    peer = new Peer(roomId, { debug: 1 });
     peer.on('open', (id) => { selfId = id; handlers.onOpen(id); });
     peer.on('connection', (conn) => setupHostConn(conn));
     peer.on('error', (err) => handlers.onError(err));
@@ -37,9 +32,8 @@ export function createNetwork() {
   }
 
   function join(roomId) {
-    ensurePeerLib();
     isHost = false;
-    peer = new window.Peer(undefined, { debug: 1 });
+    peer = new Peer(undefined, { debug: 1 });
     peer.on('open', (id) => {
       selfId = id;
       hostConn = peer.connect(roomId, { reliable: true });

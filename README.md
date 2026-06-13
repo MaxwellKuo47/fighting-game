@@ -1,7 +1,9 @@
 # 幾何鬥技場 — 多人連線格鬥
 
-以 **three.js (WebGL)** + vanilla JavaScript 製作的 3D（俯視傾斜鏡頭）多人連線格鬥遊戲。
+以 **three.js (WebGL)** 渲染、**React + Vite + TypeScript** 打造的 3D（俾視傾斜鏡頭）多人連線格鬥遊戲。
 全部玩家互為敵人，**場上剩最後一人即獲勝**。
+
+> 架構：React 只負責選單／大廳／結算等 UI 畫面；遊戲迴圈與 three.js 渲染維持高效能的**命令式引擎**（`src/game/`），透過 canvas ref 與 controller 橋接。
 
 - 🎮 純鍵盤操作：`WASD/方向鍵` 移動、`J` 普攻、`K` 技能1、`L` 技能2、`;` 大絕招
 - 👥 最多 8 人同場混戰
@@ -21,19 +23,23 @@
 
 ## 本機執行
 
-WebRTC 需要在 `http(s)://`（含 `localhost`）下執行，直接用 `file://` 開啟無法連線。請用任一靜態伺服器：
+需要 **Node.js 18+** 與 **Yarn**。WebRTC 需要在 `http(s)://`（含 `localhost`）下執行，Vite dev server 已符合。
 
 ```bash
-# 方法 A：Node（不需安裝，需要 Node 環境）
-npx serve .
+# 1. 安裝依賴（首次）
+yarn install
 
-# 方法 B：Python 3
-python3 -m http.server 8000
+# 2. 啟動開發伺服器（預設 http://localhost:5173）
+yarn dev
 
-# 方法 C：VS Code 安裝 "Live Server" 擴充功能，對 index.html 按右鍵 Open with Live Server
+# 3. 建置正式版（輸出至 dist/，含 TypeScript 型別檢查）
+yarn build
+
+# 4. 本機預覽建置結果
+yarn preview
 ```
 
-開啟瀏覽器到對應網址（例 `http://localhost:8000`）。
+> `yarn dev` 已開啟 `host`，同網其他裝置可透過終端顯示的 `Network:` 網址連入測試多人。
 
 ### 自己一個人測試
 開兩個以上瀏覽器分頁/視窗：
@@ -45,10 +51,14 @@ python3 -m http.server 8000
 
 ## 免費部署（給朋友跨網路一起玩）
 
-本專案是純前端靜態檔，把整個資料夾丟到任一免費靜態托管即可，**不需要後端**：
+本專案建置後是純前端靜態檔（`dist/`），**不需要後端**：
 
-- **GitHub Pages**：將檔案推到 repo，Settings → Pages → 選 branch 與根目錄。
-- **Netlify / Cloudflare Pages / Vercel**：拖拉資料夾或連結 repo，部署目錄選根目錄。
+```bash
+yarn build   # 產生 dist/
+```
+
+- **Netlify / Cloudflare Pages / Vercel**：連結 repo，build 指令設 `yarn build`、發布目錄設 `dist`。
+- **GitHub Pages**：將 `dist/` 內容推上。若部署在子路徑（例 `/repo-name/`），需在 `vite.config.ts` 設 `base: '/repo-name/'`。
 
 部署後分享網址，房主開房、朋友輸房號即可連線。
 
@@ -70,30 +80,43 @@ python3 -m http.server 8000
 ## 專案結構
 
 ```
-index.html        畫面骨架 + 載入 PeerJS CDN + three.js importmap
-style.css         選單／大廳／HUD 樣式
-js/
-  constants.js    競技場尺寸、tick rate、物理常數
-  characters.js   10 角色資料與技能規格（含每招 vfx 特效 id）
-  input.js        鍵盤輸入
-  entities.js     實體工廠、數學、傷害/效果輔助
-  simulation.js   權威模擬 step() 與移動（房主執行）
-  network.js      PeerJS P2P 包裝
-  ui.js           選單/大廳/角色選擇/結算 DOM
-  main.js         進入點、狀態機、遊戲迴圈
-  renderer.js     three.js 渲染入口（編排以下模組）
-  renderer.canvas2d.js  舊版 Canvas2D 渲染（保留備援參考）
-  render3d/       3D 渲染模組
-    scene.js      WebGLRenderer/相機/燈光/地板/泛光後處理/震動閃光
-    models.js     10 角色程序化 3D 模型 + 動畫
-    entities3d.js 投射物/地面範圍區 3D 物件
-    particles.js  GPU 粒子系統（單一 draw call）
-    fxbus.js      特效事件去重 + 一次性特效
-    hud.js        引擎內 HUD（頭頂名牌 + 角落面板）
-    coords.js     世界座標 ↔ 場景座標
-    vfx/          每個角色專屬的華麗技能特效
-  vendor/three/   本機 three.js（無 build step，importmap 載入）
+index.html            Vite 入口（<div id=root> + 載入 /src/main.tsx）
+package.json          依賴與 scripts（dev / build / preview）
+vite.config.ts        Vite 設定（@vitejs/plugin-react、server.host）
+tsconfig.json         TypeScript 設定（allowJs：引擎 .js 源用）
+public/assets/        静態資源（角色 SVG）
+src/
+  main.tsx            React 進入點（掛載 <App/>、引入 style.css）
+  App.tsx             依遊戲階段切換畫面、訂閱 controller 事件
+  types.ts            React ↔ 引擎的邊界型別
+  style.css           選單／大廳／HUD 樣式
+  components/         React UI 畫面
+    MenuScreen.tsx    主選單（名稱／建房／加房）
+    LobbyScreen.tsx   大廳（房號／角色選擇／玩家列表／開始）
+    GameScreen.tsx    遊戲容器（canvas，掛/卸載時交接 controller）
+    GameOverScreen.tsx 結算（勝者／戰績／返回大廳）
+  game/               命令式遊戲引擎（維持 JavaScript）
+    controller.ts     串接連線／模擬／渲染／輸入，管理遊戲迴圈（原 main.js）
+    constants.js      競技場尺寸、tick rate、物理常數
+    characters.js     10 角色資料與技能規格（含每招 vfx 特效 id）
+    input.js          鍵盤輸入
+    entities.js       實體工廠、數學、傷害/效果輔助
+    simulation.js     權威模擬 step() 與移動（房主執行）
+    network.js        PeerJS P2P 包裝（import 自 peerjs 套件）
+    renderer.js       three.js 渲染入口（編排以下模組）
+    renderer.canvas2d.js  舊版 Canvas2D 渲染（保留備援參考）
+    render3d/         3D 渲染模組
+      scene.js        WebGLRenderer/相機/燈光/地板/泛光後處理/震動閃光
+      models.js       10 角色程序化 3D 模型 + 動畫
+      entities3d.js   投射物/地面範圍區 3D 物件
+      particles.js    GPU 粒子系統（單一 draw call）
+      fxbus.js        特效事件去重 + 一次性特效
+      hud.js          引擎內 HUD（頭頂名牌 + 角落面板）
+      coords.js       世界座標 ↔ 場景座標
+      vfx/            每個角色專屬的華麗技能特效
 ```
+
+> three.js 與 PeerJS 現由 **npm 套件**（`three@0.180.0`、`peerjs@1.5.4`）提供，Vite 原生解析 `three` 與 `three/addons/*`。原 `js/vendor/three/` 與 importmap／CDN 已移除。
 
 ## 已知限制（此版本）
 

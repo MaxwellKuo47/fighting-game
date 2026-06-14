@@ -17,6 +17,7 @@ export interface LobbyEntry {
   controlScheme: ControlScheme;
   isHost: boolean;
   isNpc?: boolean;
+  team?: number; // 0 = 單人 (與所有人為敵)；正數 = 同號為友方
 }
 
 export interface LobbyView {
@@ -31,10 +32,12 @@ export interface GameOverPlayer {
   name: string;
   charId: number;
   kills: number;
+  team?: number;
 }
 
 export interface GameOverView {
   winnerName: string | null;
+  winnerTeam?: number; // 0 = 單人勝 / >0 = 獲勝隊伍
   players: GameOverPlayer[];
   isHost: boolean;
 }
@@ -58,6 +61,8 @@ export interface CharacterMeta {
   maxHp: number;
   maxMana: number;
   desc: string;
+  role?: string;     // 定位標籤 (前排/輸出/支援...)
+  synergy?: string;  // 組隊搭配提示
   talent?: TalentMeta;
   basic: SkillMeta;
   skill1: SkillMeta;
@@ -81,6 +86,7 @@ export interface GameController {
   joinRoom(name: string, code: string): void;
   selectChar(charId: number): void;
   selectControlScheme(scheme: ControlScheme): void;
+  selectTeam(team: number): void;
   selectGameFlags(flags: GameFlags): void;
   addNpc(): void;
   removeNpc(): void;

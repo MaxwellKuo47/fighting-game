@@ -26,8 +26,10 @@ interface LobbyScreenProps {
   status: string;
   selectedChar: number;
   selectedControlScheme: ControlScheme;
+  selectedTeam: number;
   onSelectChar: (id: number) => void;
   onSelectControlScheme: (scheme: ControlScheme) => void;
+  onSelectTeam: (team: number) => void;
   onSelectGameFlags: (flags: GameFlags) => void;
   onAddNpc: () => void;
   onRemoveNpc: () => void;
@@ -35,7 +37,7 @@ interface LobbyScreenProps {
   onLeave: () => void;
 }
 
-export function LobbyScreen({ lobby, status, selectedChar, selectedControlScheme, onSelectChar, onSelectControlScheme, onSelectGameFlags, onAddNpc, onRemoveNpc, onStart, onLeave }: LobbyScreenProps) {
+export function LobbyScreen({ lobby, status, selectedChar, selectedControlScheme, selectedTeam, onSelectChar, onSelectControlScheme, onSelectTeam, onSelectGameFlags, onAddNpc, onRemoveNpc, onStart, onLeave }: LobbyScreenProps) {
   const { players, selfId, isHost, roomCode, gameFlags } = lobby;
   const [copied, setCopied] = useState(false);
   const skillDisplay = getSkillDisplay(selectedControlScheme);
@@ -77,6 +79,20 @@ export function LobbyScreen({ lobby, status, selectedChar, selectedControlScheme
             ↑↓←→ 移動 + ASDF 技能
           </button>
         </div>
+
+        <h3>隊伍</h3>
+        <div className="control-scheme-selector team-selector">
+          {[0, 1, 2, 3, 4].map((t) => (
+            <button
+              key={t}
+              className={'btn' + (selectedTeam === t ? ' primary' : '')}
+              onClick={() => onSelectTeam(t)}
+            >
+              {t === 0 ? '單人混戰' : `隊伍 ${t}`}
+            </button>
+          ))}
+        </div>
+        <p className="hint">同隊玩家為友軍：不會互相傷害，治療／護盾／增益可作用於隊友。單人＝全場混戰、最後一人獲勝。</p>
 
         <h3>遊戲模式{!isHost && <span className="dim">（由房主設定）</span>}</h3>
         <div className="game-modes-grid">
@@ -122,10 +138,12 @@ export function LobbyScreen({ lobby, status, selectedChar, selectedControlScheme
               </div>
               <div className="char-name">{c.name}</div>
               <div className="char-stat">HP {c.maxHp} · MP {c.maxMana}</div>
+              {c.role && <div className="char-role">{c.role}</div>}
               <div className="char-desc">{c.desc}</div>
               {c.talent && (
                 <div className="char-talent"><b>天賦</b> {c.talent.name}：{c.talent.desc}</div>
               )}
+              {c.synergy && <div className="char-synergy"><b>搭配</b> {c.synergy}</div>}
               <div className="char-skills">
                 <span>{skillDisplay.basic} {c.basic.name}</span><span>{skillDisplay.skill1} {c.skill1.name}</span><span>{skillDisplay.skill2} {c.skill2.name}</span>
                 {c.ultimate && <span className="ult">{skillDisplay.ultimate} {c.ultimate.name}（大絕）</span>}
@@ -153,6 +171,7 @@ export function LobbyScreen({ lobby, status, selectedChar, selectedControlScheme
                     <span className="dot" style={{ background: c.color }}></span>
                     <span className="pname">{p.name}{p.id === selfId ? '（你）' : ''}{p.isHost ? ' 👑' : ''}</span>
                     <span className="pchar">{c.name}</span>
+                    {p.team ? <span className="pteam">隊 {p.team}</span> : null}
                     <span className="pcontrol">
                       {p.isNpc ? '🤖 NPC' : (p.controlScheme === 'wasd-jkl' ? '⌨️ WASD' : '🎮 ↑↓←→')}
                     </span>

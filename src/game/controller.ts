@@ -50,6 +50,7 @@ function createController(): GameController {
   let roomCode = '';
   let selectedChar = 0;
   let selectedControlScheme: ControlScheme = 'wasd-jkl';
+  let selectedTeam = 0; // 0 = 單人；正數 = 組隊
   let gameFlags: GameFlags = { freeMana: false, noCooldown: false, noDamage: false };
   let lobby: LobbyEntry[] = [];
 
@@ -88,18 +89,18 @@ function createController(): GameController {
   function setupHost() {
     net.on('onOpen', (id: string) => {
       selfId = id;
-      addToLobby({ id, name: myName, charId: selectedChar, controlScheme: selectedControlScheme, isHost: true });
+      addToLobby({ id, name: myName, charId: selectedChar, controlScheme: selectedControlScheme, isHost: true, team: selectedTeam });
       emit('phase', 'lobby');
       renderLobby();
     });
     net.on('onData', (from: string, data: any) => {
       if (data.t === 'hello') {
         if (lobby.length >= MAX_PLAYERS) { net.sendTo(from, { t: 'full' }); return; }
-        addToLobby({ id: from, name: data.name, charId: data.charId | 0, controlScheme: data.controlScheme || 'wasd-jkl', isHost: false });
+        addToLobby({ id: from, name: data.name, charId: data.charId | 0, controlScheme: data.controlScheme || 'wasd-jkl', isHost: false, team: data.team | 0 });
         broadcastLobby();
       } else if (data.t === 'select') {
         const p = lobby.find((x) => x.id === from);
-        if (p) { p.charId = data.charId | 0; if (data.controlScheme) p.controlScheme = data.controlScheme; broadcastLobby(); }
+        if (p) { p.charId = data.charId | 0; if (data.controlScheme) p.controlScheme = data.controlScheme; if (data.team != null) p.team = data.team | 0; broadcastLobby(); }
       } else if (data.t === 'input') {
         inputs[from] = data.input;
       }
@@ -119,7 +120,7 @@ function createController(): GameController {
     net.on('onOpen', () => {
       selfId = net.id;
       emit('phase', 'lobby');
-      net.sendToHost({ t: 'hello', name: myName, charId: selectedChar, controlScheme: selectedControlScheme });
+      net.sendToHost({ t: 'hello', name: myName, charId: selectedChar, controlScheme: selectedControlScheme, team: selectedTeam });
       emit('lobbyStatus', '已連上房主，等待開始…');
     });
     net.on('onData', (_from: string, data: any) => {
@@ -139,7 +140,7 @@ function createController(): GameController {
 
   // ---------- 開始遊戲 ----------
   function hostStart() {
-    const arr = lobby.map((p) => ({ id: p.id, name: p.name, charId: p.charId }));
+    const arr = lobby.map((p) => ({ id: p.id, name: p.name, charId: p.charId, team: p.team || 0 }));
     gameState = createInitialState(arr, gameFlags);
     for (const id of Object.keys(gameState.players)) inputs[id] = { ...EMPTY_INPUT };
     net.broadcast({ t: 'start', state: gameState, lobby });
@@ -263,7 +264,7 @@ function createController(): GameController {
       Object.assign(vp, {
         id: sp.id, name: sp.name, charId: sp.charId, facing: sp.facing,
         hp: sp.hp, maxHp: sp.maxHp, mana: sp.mana, maxMana: sp.maxMana,
-        alive: sp.alive, shield: sp.shield, kills: sp.kills, effects: sp.effects, cd: sp.cd, ult: sp.ult,
+        alive: sp.alive, shield: sp.shield, kills: sp.kills, effects: sp.effects, cd: sp.cd, ult: sp.ult, team: sp.team,
       });
       if (id === selfId && localSelf) {
         vp.x = localSelf.x; vp.y = localSelf.y; vp.facing = localSelf.facing;
@@ -299,15 +300,16 @@ function createController(): GameController {
     input.disable();
     const winner = gameState.winner ? gameState.players[gameState.winner] : null;
     const winnerName = winner ? winner.name : null;
-    const players = Object.values(gameState.players).map((p: any) => ({ name: p.name, charId: p.charId, kills: p.kills }));
-    net.broadcast({ t: 'gameover', winner: winnerName, players });
-    showGameover({ winnerName, players, isHost: true });
+    const winnerTeam = gameState.winnerTeam || 0;
+    const players = Object.values(gameState.players).map((p: any) => ({ name: p.name, charId: p.charId, kills: p.kills, team: p.team || 0 }));
+    net.broadcast({ t: 'gameover', winner: winnerName, winnerTeam, players });
+    showGameover({ winnerName, winnerTeam, players, isHost: true });
   }
 
   function joinerGameover(data: any) {
     stopLoop();
     input.disable();
-    showGameover({ winnerName: data.winner, players: data.players, isHost: false });
+    showGameover({ winnerName: data.winner, winnerTeam: data.winnerTeam || 0, players: data.players, isHost: false });
   }
 
   function showGameover(viewData: GameOverView) {
@@ -355,6 +357,16 @@ function createController(): GameController {
     }
   }
 
+  function selectTeam(team: number) {
+    selectedTeam = team | 0;
+    if (role === 'host') {
+      const me = lobby.find((p) => p.id === selfId);
+      if (me) { me.team = selectedTeam; broadcastLobby(); }
+    } else if (role === 'joiner') {
+      net.sendToHost({ t: 'select', charId: selectedChar, controlScheme: selectedControlScheme, team: selectedTeam });
+    }
+  }
+
   function selectGameFlags(flags: GameFlags) {
     gameFlags = { ...flags };
     if (role === 'host') broadcastLobby();
@@ -366,7 +378,7 @@ function createController(): GameController {
     const npcId = 'npc-' + Math.random().toString(36).slice(2, 8);
     const charId = Math.floor(Math.random() * 10);
     const npcNum = lobby.filter((p) => p.isNpc).length + 1;
-    lobby.push({ id: npcId, name: `NPC ${npcNum}`, charId, controlScheme: 'wasd-jkl', isHost: false, isNpc: true });
+    lobby.push({ id: npcId, name: `NPC ${npcNum}`, charId, controlScheme: 'wasd-jkl', isHost: false, isNpc: true, team: 0 });
     broadcastLobby();
   }
 
@@ -405,7 +417,7 @@ function createController(): GameController {
     } else {
       charForSelf = allCharIds[Math.floor(Math.random() * allCharIds.length)];
     }
-    lobby.push({ id: selfId, name: myName, charId: charForSelf, controlScheme: selectedControlScheme, isHost: true });
+    lobby.push({ id: selfId, name: myName, charId: charForSelf, controlScheme: selectedControlScheme, isHost: true, team: selectedTeam });
 
     // 其他玩家
     for (let i = 1; i < numPlayers; i++) {
@@ -416,6 +428,7 @@ function createController(): GameController {
         charId: randomChar,
         controlScheme: 'wasd-jkl',
         isHost: false,
+        team: 0,
       });
     }
 
@@ -460,6 +473,7 @@ function createController(): GameController {
     joinRoom,
     selectChar,
     selectControlScheme,
+    selectTeam,
     selectGameFlags,
     addNpc,
     removeNpc,

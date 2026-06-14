@@ -20,6 +20,7 @@ export function App() {
   const [gameover, setGameover] = useState<GameOverView | null>(null);
   const [selectedChar, setSelectedChar] = useState(0);
   const [selectedControlScheme, setSelectedControlScheme] = useState<ControlScheme>('wasd-jkl');
+  const [selectedTeam, setSelectedTeam] = useState(0);
 
   useEffect(() => {
     const offs = [
@@ -56,6 +57,11 @@ export function App() {
     controller.selectControlScheme(scheme);
   }
 
+  function handleSelectTeam(team: number) {
+    setSelectedTeam(team);
+    controller.selectTeam(team);
+  }
+
   function handleSelectGameFlags(flags: GameFlags) {
     controller.selectGameFlags(flags);
   }
@@ -76,8 +82,10 @@ export function App() {
           status={lobbyStatus}
           selectedChar={selectedChar}
           selectedControlScheme={selectedControlScheme}
+          selectedTeam={selectedTeam}
           onSelectChar={handleSelectChar}
           onSelectControlScheme={handleSelectControlScheme}
+          onSelectTeam={handleSelectTeam}
           onSelectGameFlags={handleSelectGameFlags}
           onAddNpc={() => controller.addNpc()}
           onRemoveNpc={() => controller.removeNpc()}

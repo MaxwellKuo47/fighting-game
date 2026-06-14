@@ -71,15 +71,24 @@ export function createHud({ stage, scene, camera, controlScheme = 'wasd-jkl' }) 
   function update(state, selfId) {
     const players = Object.values(state.players);
     // 頭頂名牌
+    const me0 = state.players[selfId];
+    const selfTeam = me0 ? (me0.team || 0) : 0;
+    const rel = (p) => {
+      if (p.id === selfId) return 'self';
+      if (selfTeam > 0 && (p.team || 0) === selfTeam) return 'ally';
+      return 'enemy';
+    };
     const seen = new Set();
     for (const p of players) {
-      const isSelf = p.id === selfId;
-      const invisEnemy = p.effects && p.effects.invis && !isSelf;
-      if (!p.alive || invisEnemy) continue;
+      const r = rel(p);
+      const invisHidden = p.effects && p.effects.invis && r === 'enemy'; // 友方/自己隱身仍可見
+      if (!p.alive || invisHidden) continue;
       seen.add(p.id);
       const pl = ensurePlate(p.id);
       pl.obj.position.set(sceneX(p.x), HEAD_Y, sceneZ(p.y));
       pl.name.textContent = p.name;
+      // 名牌依敵我上色；solo 模式(selfTeam=0) 敵人不標紅、維持中性白
+      pl.name.style.color = r === 'self' ? '#ffd54a' : r === 'ally' ? '#6ee7a8' : (selfTeam > 0 ? '#ff8a80' : '#ffffff');
       pl.hp.style.width = pct(p.hp / p.maxHp);
       pl.mp.style.width = pct(p.mana / p.maxMana);
       pl.root.style.display = '';

@@ -5,7 +5,7 @@ import { getCharacter } from './characters.js';
 import { EMPTY_INPUT } from './input.js';
 import {
   clamp, dist, angleDiff, makeProjectile, makeZone,
-  dealDamage, applyEffect, addFx, missingHp,
+  dealDamage, applyEffect, addFx, missingHp, isEnemy, isAlly,
 } from './entities.js';
 
 export function speedOf(p) {
@@ -54,7 +54,7 @@ function meleeHit(state, p, a, silent) {
   const m = outMult(p, a);
   const full = a.arc >= 6;
   for (const o of Object.values(state.players)) {
-    if (o.id === p.id || !o.alive) continue;
+    if (!isEnemy(state, p.id, o)) continue;
     const dx = o.x - p.x, dy = o.y - p.y;
     const d = Math.hypot(dx, dy);
     if (d > a.range + PLAYER_RADIUS) continue;
@@ -99,6 +99,22 @@ function applySelfBuff(p, s) {
   if (s.shield) applyEffect(p, 'shield', { amount: s.shield, duration: s.duration || 5 });
   if (s.effect) applyEffect(p, s.effect.kind, s.effect, p.id);
   if (s.effects) for (const e of s.effects) applyEffect(p, e.kind, e, p.id); // 多重自我效果 (如血怒 + 吸血)
+}
+
+// 對範圍內友方 (含自己) 施加增益 (支援型技能：治療/護盾/減傷光環)。
+// 鍵盤無選敵 → 一律以施放者為中心 AoE；solo 時僅作用自身。
+function applyAllyBuff(state, caster, ally) {
+  if (!ally) return;
+  const r = ally.radius || 1e9;
+  for (const o of Object.values(state.players)) {
+    if (!isAlly(state, caster.id, o)) continue;
+    if (dist(caster.x, caster.y, o.x, o.y) > r) continue;
+    if (ally.cleanse) applyEffect(o, 'cleanse');
+    if (ally.heal) applyEffect(o, 'heal', { amount: ally.heal });
+    if (ally.shield) applyEffect(o, 'shield', { amount: ally.shield, duration: ally.duration || 5 });
+    if (ally.effect) applyEffect(o, ally.effect.kind, ally.effect, caster.id);
+    if (ally.effects) for (const e of ally.effects) applyEffect(o, e.kind, e, caster.id);
+  }
 }
 
 function executeAction(state, p, a, opts = {}) {
@@ -170,7 +186,7 @@ function executeAction(state, p, a, opts = {}) {
     case 'multiblink': {
       // 多目標瞬殺：在最近/帶印記的敵人間連續瞬移斬擊 (刺客虛空換影)
       const n = a.count || 3;
-      const cands = Object.values(state.players).filter((o) => o.id !== p.id && o.alive);
+    const cands = Object.values(state.players).filter((o) => isEnemy(state, p.id, o));
       cands.sort((x, y) => {
         const mx = (x.effects && x.effects.mark) ? 0 : 1, my = (y.effects && y.effects.mark) ? 0 : 1;
         if (mx !== my) return mx - my;
@@ -237,6 +253,7 @@ function executeAction(state, p, a, opts = {}) {
     }
   }
   if (a.self) applySelfBuff(p, a.self);
+  if (a.ally) applyAllyBuff(state, p, a.ally); // 施放瞬間對友軍的 AoE 增益 (治療/護盾/減傷)
 }
 
 function tryAction(state, p, slot) {
@@ -314,7 +331,7 @@ function updateProjectiles(state, dt) {
     if (pr.homing) {
       let best = null, bd = Infinity;
       for (const o of Object.values(state.players)) {
-        if (o.id === pr.owner || !o.alive) continue;
+        if (!isEnemy(state, pr.owner, o)) continue;
         const d = dist(pr.x, pr.y, o.x, o.y);
         if (d < bd) { bd = d; best = o; }
       }
@@ -337,7 +354,7 @@ function updateProjectiles(state, dt) {
     }
     let dead = false;
     for (const o of Object.values(state.players)) {
-      if (o.id === pr.owner || !o.alive || pr.hit[o.id]) continue;
+      if (!isEnemy(state, pr.owner, o) || pr.hit[o.id]) continue;
       if (dist(pr.x, pr.y, o.x, o.y) <= pr.radius + PLAYER_RADIUS) {
         dealDamage(state, o, pr.dmg, pr.owner);
         if (pr.knockback) {
@@ -391,7 +408,7 @@ function updateZones(state, dt) {
     // 向心吸引 (黑洞/擒抱)：每幀把圈內敵人拉向中心
     if (z.pull) {
       for (const o of Object.values(state.players)) {
-        if (o.id === z.owner || !o.alive) continue;
+        if (!isEnemy(state, z.owner, o)) continue;
         const dx = z.x - o.x, dy = z.y - o.y, d = Math.hypot(dx, dy);
         if (d > 4 && d <= z.radius + PLAYER_RADIUS) {
           const f = Math.min(d, z.pull * dt);
@@ -406,12 +423,15 @@ function updateZones(state, dt) {
       z.tickTimer += z.tick;
       let hits = 0;
       for (const o of Object.values(state.players)) {
-        if (o.id === z.owner || !o.alive) continue;
-        if (dist(z.x, z.y, o.x, o.y) <= z.radius + PLAYER_RADIUS) {
-          dealDamage(state, o, z.dmg, z.owner);
+        if (!o.alive) continue;
+        if (dist(z.x, z.y, o.x, o.y) > z.radius + PLAYER_RADIUS) continue;
+        if (isEnemy(state, z.owner, o)) {
+          if (z.dmg) dealDamage(state, o, z.dmg, z.owner);
           if (z.effect) applyEffectFrom(state, o, z.effect, z.owner);
           if (z.knockback) { const dx = o.x - z.x, dy = o.y - z.y, d = Math.hypot(dx, dy) || 1; o.kvx += dx / d * z.knockback; o.kvy += dy / d * z.knockback; }
           hits++;
+        } else if (z.allyHeal && isAlly(state, z.owner, o)) {
+          o.hp = Math.min(o.maxHp, o.hp + z.allyHeal); // 友方光環持續回血 (含自己)
         }
       }
       // 範圍汲取：依命中敵數回復擁有者 (治療師大招)
@@ -433,9 +453,13 @@ function updateFx(state, dt) {
 function checkWin(state) {
   if (state.phase !== 'playing') return;
   const alive = Object.values(state.players).filter((p) => p.alive);
-  if (state.startCount >= 2 && alive.length <= 1) {
+  // 存活「陣營」數：team>0 以隊伍號計，team 0 (單人) 各自為一方
+  const sides = new Set();
+  for (const p of alive) sides.add(p.team > 0 ? 't' + p.team : 'p' + p.id);
+  if (state.startCount >= 2 && sides.size <= 1) {
     state.phase = 'gameover';
-    state.winner = alive.length === 1 ? alive[0].id : null;
+    state.winner = alive.length >= 1 ? alive[0].id : null;
+    state.winnerTeam = alive.length >= 1 ? (alive[0].team || 0) : 0;
   }
 }
 
@@ -449,7 +473,7 @@ function processScripted(state, p, dt) {
     c.dist -= advance;
     let hitSomeone = false;
     for (const o of Object.values(state.players)) {
-      if (o.id === p.id || !o.alive || c.hit[o.id]) continue;
+      if (!isEnemy(state, p.id, o) || c.hit[o.id]) continue;
       if (dist(p.x, p.y, o.x, o.y) <= c.hitRadius + PLAYER_RADIUS) {
         if (c.dmg) dealDamage(state, o, c.dmg, p.id);
         if (c.knockback) { const dx = o.x - p.x, dy = o.y - p.y, d = Math.hypot(dx, dy) || 1; o.kvx += dx / d * c.knockback; o.kvy += dy / d * c.knockback; }
@@ -489,7 +513,7 @@ function processChannel(state, p, dt) {
     ch.tickTimer += ch.tick;
     let best = null, bd = Infinity;
     for (const o of Object.values(state.players)) {
-      if (o.id === p.id || !o.alive) continue;
+      if (!isEnemy(state, p.id, o)) continue;
       const d = dist(p.x, p.y, o.x, o.y);
       if (d <= ch.range && d < bd) { bd = d; best = o; }
     }

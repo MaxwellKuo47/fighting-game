@@ -15,10 +15,11 @@ export function angleDiff(a, b) {
   return d;
 }
 
-export function makePlayer(id, name, charId, x, y) {
+export function makePlayer(id, name, charId, x, y, team = 0) {
   const c = getCharacter(charId);
   return {
     id, name, charId,
+    team,           // 0 = 單人 (與所有人為敵)；正數 = 同號為友方
     x, y, vx: 0, vy: 0, kvx: 0, kvy: 0, facing: 0,
     hp: c.maxHp, maxHp: c.maxHp,
     mana: c.maxMana, maxMana: c.maxMana,
@@ -54,7 +55,7 @@ export function createInitialState(playersArr, flags = {}) {
   const players = {};
   const cx = ARENA.width / 2, cy = ARENA.height / 2;
   playersArr.forEach((p, i) => {
-    const pl = makePlayer(p.id, p.name, p.charId, pts[i].x, pts[i].y);
+    const pl = makePlayer(p.id, p.name, p.charId, pts[i].x, pts[i].y, p.team || 0);
     pl.facing = Math.atan2(cy - pts[i].y, cx - pts[i].x); // 一開始面向中心
     players[p.id] = pl;
   });
@@ -66,6 +67,7 @@ export function createInitialState(playersArr, flags = {}) {
     fx: [],          // 短暫視覺特效
     time: 0,
     winner: null,
+    winnerTeam: 0,   // 0 = 單人勝 / null = 平手；>0 = 獲勝隊伍號
     startCount: playersArr.length,
     flags: { freeMana: false, noCooldown: false, noDamage: false, ...flags },
   };
@@ -97,6 +99,7 @@ export function makeZone(owner, x, y, opt) {
     follow: opt.follow ? owner : null,          // 跟隨擁有者 (光環)
     pull: opt.pull || 0,                        // 每秒朝中心吸引強度 (黑洞/擒抱)
     drainHeal: opt.drainHeal || 0,              // 每跳每命中一名敵人回復擁有者血量 (範圍汲取)
+    allyHeal: opt.allyHeal || 0,                // 每跳對圈內友軍(含自己)回血 (治療光環)
     vfx: opt.vfx || null,
   };
 }
@@ -110,6 +113,23 @@ export function addFx(state, fx) {
 }
 
 export const missingHp = (p) => 1 - p.hp / p.maxHp;
+
+// 敵我判定：同一正數隊伍 = 友方；team 0 (單人) 與所有人為敵。自己永遠非敵。
+// ownerId 為攻擊來源 (玩家/投射物/zone 的 owner)。
+export function isEnemy(state, ownerId, target) {
+  if (!target || !target.alive || target.id === ownerId) return false;
+  const owner = state.players[ownerId];
+  if (owner && owner.team > 0 && owner.team === target.team) return false; // 友方
+  return true;
+}
+
+// 友方判定 (含自己)：供治療/護盾/增益類技能鎖定友軍。
+export function isAlly(state, ownerId, target) {
+  if (!target || !target.alive) return false;
+  if (target.id === ownerId) return true; // 自身也算友方 (heal/shield 含自己)
+  const owner = state.players[ownerId];
+  return !!(owner && owner.team > 0 && owner.team === target.team);
+}
 
 // 天賦傷害修正 (攻擊者增傷 / 受害者減傷)；回傳修正後傷害。純函式，副作用(回魔/連擊/吸血)在 dealDamage 內處理。
 function talentDamageMods(attacker, target, amount) {
@@ -151,6 +171,8 @@ export function dealDamage(state, target, amount, attackerId, opts = {}) {
   if (!opts.noTalent && hostile) dmg = talentDamageMods(attacker, target, dmg);
   // 死亡印記：受傷放大 (刺客標記引爆體系)
   if (target.effects && target.effects.mark) dmg *= 1 + target.effects.mark.bonus;
+  // 友方減傷光環 (坦克大招 protect 效果)
+  if (target.effects && target.effects.protect) dmg *= 1 - (target.effects.protect.factor || 0);
 
   // 荊棘反傷：依「嘗試造成的傷害」彈回攻擊者，即使被護盾吸收仍反彈
   // (反震盾/招架本身會附帶護盾，若只反彈穿透傷害會完全失效)
@@ -246,6 +268,15 @@ export function applyEffect(p, kind, data, srcId) {
   }
   if (kind === 'reflect') {
     p.effects.reflect = { remaining: data.duration || 5, factor: data.factor || 0.35 };
+    return;
+  }
+  if (kind === 'protect') {
+    // 友方減傷光環 (可重複刷新，取較高減傷與較長時間)
+    const cur = p.effects.protect;
+    p.effects.protect = {
+      remaining: Math.max(cur ? cur.remaining : 0, data.duration || 4),
+      factor: Math.max(cur ? cur.factor : 0, data.factor || 0.2),
+    };
     return;
   }
   if (kind === 'chill') {

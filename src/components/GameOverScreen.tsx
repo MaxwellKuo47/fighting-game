@@ -12,13 +12,16 @@ interface GameOverScreenProps {
 }
 
 export function GameOverScreen({ view, onToLobby, onLeave }: GameOverScreenProps) {
-  const { winnerName, players, isHost } = view;
+  const { winnerName, winnerTeam, players, isHost } = view;
   const sorted = [...players].sort((a, b) => b.kills - a.kills);
+  const title = winnerName
+    ? (winnerTeam && winnerTeam > 0 ? `🏆 隊伍 ${winnerTeam} 獲勝！` : `🏆 ${winnerName} 獲勝！`)
+    : '平手 — 無人存活';
 
   return (
     <section id="screen-gameover" className="screen active">
       <div className="panel">
-        <h1>{winnerName ? `🏆 ${winnerName} 獲勝！` : '平手 — 無人存活'}</h1>
+        <h1>{title}</h1>
         <h3>本局戰績</h3>
         <div className="player-list">
           {sorted.map((p, i) => {
@@ -28,6 +31,7 @@ export function GameOverScreen({ view, onToLobby, onLeave }: GameOverScreenProps
                 <span className="dot" style={{ background: c.color }}></span>
                 <span className="pname">{p.name}</span>
                 <span className="pchar">{c.name}</span>
+                {p.team ? <span className="pchar">隊 {p.team}</span> : null}
                 <span className="pkills">擊殺 {p.kills}</span>
               </div>
             );

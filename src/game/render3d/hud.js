@@ -121,58 +121,58 @@ export function createHud({ stage, scene, camera, controlScheme = 'wasd-jkl' }) 
       pl.obj.position.set(sceneX(p.x), headY, sceneZ(p.y));
       if (downed) {
         const prog = Math.floor(Math.min(1, (p.reviveProg || 0) / 3) * 100);
-        pl.name.textContent = `${p.name}　倒地 ${prog}%`;
-        pl.name.style.color = '#ff9a3c';
+        setText(pl.name, `${p.name}　倒地 ${prog}%`);
+        setStyle(pl.name, 'color', '#ff9a3c');
       } else {
-        pl.name.textContent = p.name;
+        setText(pl.name, p.name);
         // 名牌依敵我上色；solo 模式(selfTeam=0) 敵人不標紅、維持中性白
-        pl.name.style.color = r === 'self' ? '#ffd54a' : r === 'ally' ? '#6ee7a8' : (selfTeam > 0 ? '#ff8a80' : '#ffffff');
+        setStyle(pl.name, 'color', r === 'self' ? '#ffd54a' : r === 'ally' ? '#6ee7a8' : (selfTeam > 0 ? '#ff8a80' : '#ffffff'));
       }
-      pl.hp.style.width = pct(p.hp / p.maxHp);
-      pl.mp.style.width = pct(p.mana / p.maxMana);
-      pl.root.style.display = '';
+      setStyle(pl.hp, 'width', pct(p.hp / p.maxHp));
+      setStyle(pl.mp, 'width', pct(p.mana / p.maxMana));
+      pl.obj.visible = true;
     }
-    for (const [pid, pl] of plates) if (!seen.has(pid)) pl.root.style.display = 'none';
+    for (const [pid, pl] of plates) if (!seen.has(pid)) pl.obj.visible = false;
     for (const pid of hpTrack.keys()) if (!state.players[pid]) hpTrack.delete(pid); // 清理離場實體
 
     // 自身面板
     const me = state.players[selfId];
     if (me) {
-      self.style.display = '';
+      setStyle(self, 'display', '');
       const c = getCharacter(me.charId);
-      selfName.textContent = `${me.name}　(${c.name})${me.alive ? '' : '　— 淘汰'}`;
-      selfName.style.color = me.alive ? '#fff' : '#ff7675';
-      selfTalent.textContent = c.talent ? `天賦 ${c.talent.name}` : '';
-      hpFill.style.width = pct(me.hp / me.maxHp);
-      hpTxt.textContent = `${Math.ceil(me.hp)}/${me.maxHp}`;
-      mpFill.style.width = pct(me.mana / me.maxMana);
-      mpTxt.textContent = `${Math.ceil(me.mana)}/${me.maxMana}`;
+      setText(selfName, `${me.name}　(${c.name})${me.alive ? '' : '　— 淘汰'}`);
+      setStyle(selfName, 'color', me.alive ? '#fff' : '#ff7675');
+      setText(selfTalent, c.talent ? `天賦 ${c.talent.name}` : '');
+      setStyle(hpFill, 'width', pct(me.hp / me.maxHp));
+      setText(hpTxt, `${Math.ceil(me.hp)}/${me.maxHp}`);
+      setStyle(mpFill, 'width', pct(me.mana / me.maxMana));
+      setText(mpTxt, `${Math.ceil(me.mana)}/${me.maxMana}`);
       const ultR = Math.min(1, (me.ult || 0) / ULT_MAX);
       const ultReady = ultR >= 1 && me.cd.ultimate <= 0;
-      ultFill.style.width = pct(ultR);
+      setStyle(ultFill, 'width', pct(ultR));
       ultWrap.classList.toggle('ready', ultReady);
-      ultTxt.textContent = ultReady ? '終極 就緒！' : `終極 ${Math.floor(ultR * 100)}%`;
-      setChip(chip.basic, c.basic, me.cd.basic);
-      setChip(chip.skill1, c.skill1, me.cd.skill1);
-      setChip(chip.skill2, c.skill2, me.cd.skill2);
+      setText(ultTxt, ultReady ? '終極 就緒！' : `終極 ${Math.floor(ultR * 100)}%`);
+      setChip(chip.basic,  c.basic,  me.cd.basic,   me.mana);
+      setChip(chip.skill1, c.skill1, me.cd.skill1,  me.mana);
+      setChip(chip.skill2, c.skill2, me.cd.skill2,  me.mana);
       setUltChip(chip.ultimate, c.ultimate, me.ult || 0, me.cd.ultimate);
 
       // 蓄力條
       const cs = me.chargeState;
       const chargeAction = cs && c[cs.slot];
       if (cs && chargeAction && chargeAction.chargeMax) {
-        chargeWrap.style.display = '';
+        setStyle(chargeWrap, 'display', '');
         const r = Math.min(1, cs.time / chargeAction.chargeMax);
-        chargeFill.style.width = pct(r);
+        setStyle(chargeFill, 'width', pct(r));
         const isFull = r >= 0.99;
         chargeWrap.classList.toggle('full', isFull);
-        chargeTxt.textContent = isFull ? '🔥 蓄力全滿！' : `蓄力中 ${Math.floor(r * 100)}%`;
+        setText(chargeTxt, isFull ? '🔥 蓄力全滿！' : `蓄力中 ${Math.floor(r * 100)}%`);
       } else {
-        chargeWrap.style.display = 'none';
+        setStyle(chargeWrap, 'display', 'none');
         chargeWrap.classList.remove('full');
       }
     } else {
-      self.style.display = 'none';
+      setStyle(self, 'display', 'none');
     }
 
     // 計分板
@@ -180,7 +180,7 @@ export function createHud({ stage, scene, camera, controlScheme = 'wasd-jkl' }) 
     const listPlayers = isBoss ? players.filter((p) => p.team === 1) : players;
     const sorted = listPlayers.slice().sort((a, b) => b.kills - a.kills);
     const aliveN = listPlayers.filter((p) => p.alive).length;
-    boardTitle.textContent = isBoss ? `闖關隊伍 ${aliveN}/${listPlayers.length} 存活` : `存活 ${aliveN} 人`;
+    setText(boardTitle, isBoss ? `闖關隊伍 ${aliveN}/${listPlayers.length} 存活` : `存活 ${aliveN} 人`);
     let html = '';
     for (const p of sorted) {
       const cls = p.id === selfId ? 'me' : p.alive ? '' : 'dead';
@@ -188,20 +188,20 @@ export function createHud({ stage, scene, camera, controlScheme = 'wasd-jkl' }) 
       if (isBoss && !p.alive) { const rp = Math.floor(Math.min(1, (p.reviveProg || 0) / 3) * 100); tag = ` 倒地 ${rp}%`; }
       html += `<div class="row ${cls}">${esc(getCharacter(p.charId).name)} ${esc(p.name)}${isBoss ? '' : '　K:' + p.kills}${tag}</div>`;
     }
-    boardList.innerHTML = html;
+    setHtml(boardList, html);
 
     // ---- 闖關模式：魔王血條 / 部位 / 過場橫幅 ----
     if (isBoss) {
       let boss = null;
       for (const p of players) if (p.isBoss) { boss = p; break; }
       if (boss && boss.alive && state.roundPhase !== 'cleared') {
-        bossPanel.style.display = '';
+        setStyle(bossPanel, 'display', '');
         const bc = getCharacter(boss.charId);
-        bossName.textContent = `ROUND ${state.round}　${bc.subtitle ? bc.subtitle + '「' + bc.name + '」' : bc.name}`;
+        setText(bossName, `ROUND ${state.round}　${bc.subtitle ? bc.subtitle + '「' + bc.name + '」' : bc.name}`);
         const hp = state.bossHp != null ? state.bossHp : boss.hp;
         const mhp = state.bossMaxHp || boss.maxHp;
-        bossFill.style.width = pct(hp / mhp);
-        bossTxt.textContent = `${Math.ceil(hp)} / ${mhp}`;
+        setStyle(bossFill, 'width', pct(hp / mhp));
+        setText(bossTxt, `${Math.ceil(hp)} / ${mhp}`);
         const parts = players.filter((p) => p.isPart && p.ownerId === boss.id);
         if (parts.length) {
           let ph = '';
@@ -210,19 +210,19 @@ export function createHud({ stage, scene, camera, controlScheme = 'wasd-jkl' }) 
             const w = dead ? 0 : Math.max(0, Math.min(100, (pp.hp / pp.maxHp) * 100));
             ph += `<div class="bpart ${dead ? 'dead' : ''}"><span>${esc(partLabel(bc, pp.partId))}${dead ? ' 已破壞' : ''}</span><b><i style="width:${w}%"></i></b></div>`;
           }
-          bossParts.innerHTML = ph;
-        } else bossParts.innerHTML = '';
+          setHtml(bossParts, ph);
+        } else setHtml(bossParts, '');
       } else {
-        bossPanel.style.display = 'none';
+        setStyle(bossPanel, 'display', 'none');
       }
       if (state.banner && (state.banner.life == null || state.banner.life > 0)) {
-        banner.style.display = '';
-        bannerText.textContent = state.banner.text || '';
-        bannerSub.textContent = state.banner.sub || '';
-      } else banner.style.display = 'none';
+        setStyle(banner, 'display', '');
+        setText(bannerText, state.banner.text || '');
+        setText(bannerSub, state.banner.sub || '');
+      } else setStyle(banner, 'display', 'none');
     } else {
-      bossPanel.style.display = 'none';
-      banner.style.display = 'none';
+      setStyle(bossPanel, 'display', 'none');
+      setStyle(banner, 'display', 'none');
     }
   }
 
@@ -232,23 +232,59 @@ export function createHud({ stage, scene, camera, controlScheme = 'wasd-jkl' }) 
     return partId;
   }
 
-  function setChip(c, action, cd) {
-    c.label.textContent = `${c.key} ${action.name}`;
-    const ready = cd <= 0;
-    c.root.classList.toggle('ready', ready);
-    c.cool.style.height = ready ? '0%' : '100%';
+  function setChip(c, action, cd, curMana) {
+    setText(c.label, `${c.key} ${action.name}`);
+    const onCd    = cd > 0;
+    const cdMax   = action.cd || 1;
+    const manaCost = action.manaCost || 0;
+    const noMana  = !onCd && manaCost > 0 && curMana < manaCost;
+    const ready   = !onCd && !noMana;
+
+    c.root.classList.toggle('ready',   ready);
+    c.root.classList.toggle('no-mana', noMana);
+    c.root.classList.toggle('on-cd',   onCd);
+
+    // 冷卻遮罩（從頂部向下收縮）
+    setStyle(c.cool, 'height', onCd ? '100%' : '0%');
+
+    // 底部 CD 恢復條
+    if (onCd) {
+      const readyRatio = 1 - Math.max(0, Math.min(1, cd / cdMax));
+      setStyle(c.cdBar, 'width', `${readyRatio * 100}%`);
+      setClass(c.cdBar, 'cd-bar');
+      setText(c.cdSub, `${cd.toFixed(1)}s`);
+      setStyle(c.cdSub, 'display', 'block');
+    } else {
+      setStyle(c.cdBar, 'width', ready ? '100%' : '0%');
+      setClass(c.cdBar, ready ? 'cd-bar ready' : 'cd-bar no-mana');
+      setStyle(c.cdSub, 'display', 'none');
+    }
+
+    // 魔力不足文字
+    setStyle(c.manaHint, 'display', noMana ? 'block' : 'none');
+    if (noMana) setText(c.manaHint, `魔力不足 (${manaCost})`);
   }
 
   // 大招 chip：以能量充能度顯示填充；滿且無連發冷卻 = 就緒發光
   function setUltChip(c, action, ult, cd) {
-    if (!action) { c.root.style.display = 'none'; return; }
-    c.root.style.display = '';
-    c.label.textContent = `${c.key} ${action.name}`;
+    if (!action) { setStyle(c.root, 'display', 'none'); return; }
+    setStyle(c.root, 'display', '');
+    setText(c.label, `${c.key} ${action.name}`);
     const r = Math.min(1, (ult || 0) / ULT_MAX);
-    const ready = r >= 1 && cd <= 0;
-    c.root.classList.toggle('ready', ready);
+    const onCd = cd > 0;
+    const ready = r >= 1 && !onCd;
+    c.root.classList.toggle('ready',   ready);
+    c.root.classList.toggle('no-mana', false);
+    c.root.classList.toggle('on-cd',   onCd);
     c.root.classList.toggle('ult', true);
-    c.cool.style.height = `${(1 - r) * 100}%`;
+    // 冷卻遮罩：onCd 時全遮，否則靠能量條
+    setStyle(c.cool, 'height', onCd ? '100%' : '0%');
+    // 底部能量條（金色）
+    setStyle(c.cdBar, 'width', `${r * 100}%`);
+    setClass(c.cdBar, ready ? 'cd-bar ult-ready' : 'cd-bar ult');
+    setText(c.cdSub, onCd ? `${cd.toFixed(1)}s` : `${Math.floor(r * 100)}%`);
+    setStyle(c.cdSub, 'display', (!ready) ? 'block' : 'none');
+    setStyle(c.manaHint, 'display', 'none');
   }
 
   function render() { css2d.render(scene, camera); }
@@ -265,10 +301,15 @@ export function createHud({ stage, scene, camera, controlScheme = 'wasd-jkl' }) 
 }
 
 function skillChip(key, parent) {
-  const root = el('div', 'chip', parent);
-  const cool = el('i', 'cool', root);
-  const label = el('span', '', root);
-  return { root, label, cool, key };
+  const root    = el('div', 'chip', parent);
+  const cool    = el('i', 'cool', root);         // 冷卻遮罩 (從頂部向下)
+  const label   = el('span', 'chip-label', root); // 按鍵 + 技能名
+  const cdBar   = el('b', 'cd-bar', root);        // 底部進度條
+  const cdSub   = el('s', 'cd-sub', root);        // 冷卻秒數 / 能量 %
+  const manaHint = el('u', 'mana-hint', root);    // 魔力不足提示
+  cdSub.style.display = 'none';
+  manaHint.style.display = 'none';
+  return { root, label, cool, cdBar, cdSub, manaHint, key };
 }
 
 function el(tag, cls, parent) {
@@ -277,5 +318,11 @@ function el(tag, cls, parent) {
   if (parent) parent.appendChild(e);
   return e;
 }
+// 只在值真的改變時才寫 DOM；避免每幀重複寫入 textContent/style/innerHTML
+// 造成不必要的 reflow/repaint（在 DevTools 會看到元素「瘋狂閃爍」）。
+function setText(e, v) { if (e._txt !== v) { e._txt = v; e.textContent = v; } }
+function setStyle(e, k, v) { const p = '_st_' + k; if (e[p] !== v) { e[p] = v; e.style[k] = v; } }
+function setClass(e, v) { if (e._cls !== v) { e._cls = v; e.className = v; } }
+function setHtml(e, v) { if (e._html !== v) { e._html = v; e.innerHTML = v; } }
 function pct(r) { return `${Math.max(0, Math.min(1, r)) * 100}%`; }
 function esc(s) { return String(s).replace(/[&<>]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])); }

@@ -4,7 +4,7 @@ import {
   ARENA, TILT, BODY_HEIGHT, PROJECTILE_HEIGHT, PLAYER_RADIUS,
   CANVAS_W, CANVAS_H, FLOOR_TOP, FLOOR_LEFT,
   PARTICLE_MAX, SHAKE_DECAY, SHAKE_MAX, FLASH_DECAY,
-  BOB_AMP, BOB_FREQ, WALK_THRESHOLD,
+  BOB_AMP, BOB_FREQ, WALK_THRESHOLD, ULT_MAX,
 } from './constants.js';
 import { getCharacter } from './characters.js';
 
@@ -798,15 +798,101 @@ export function createRenderer(canvas) {
   }
 
   function drawSkillIcons(me, x, y, c) {
-    const slots = [['J', c.basic], ['K', c.skill1], ['L', c.skill2]];
-    let ix = x;
-    for (const [key, a] of slots) {
-      const ready = me.cd[key === 'J' ? 'basic' : key === 'K' ? 'skill1' : 'skill2'] <= 0;
-      ctx.fillStyle = ready ? 'rgba(60,160,255,0.85)' : 'rgba(80,80,90,0.7)';
-      ctx.fillRect(ix, y, 86, 18);
-      ctx.fillStyle = '#fff'; ctx.font = '11px system-ui'; ctx.textAlign = 'left';
-      ctx.fillText(`${key} ${a.name}`, ix + 5, y + 13);
-      ix += 92;
+    // 4 slots: J=basic, K=skill1, L=skill2, ;=ultimate
+    const slots = [
+      ['J', c.basic,    'basic'],
+      ['K', c.skill1,   'skill1'],
+      ['L', c.skill2,   'skill2'],
+      [';', c.ultimate, 'ultimate'],
+    ];
+
+    const IW = 82;   // icon width
+    const IH = 28;   // icon height (taller to fit CD bar)
+    const GAP = 6;   // gap between icons
+    const CDH = 4;   // CD bar height at bottom
+
+    for (let i = 0; i < slots.length; i++) {
+      const [key, a, cdKey] = slots[i];
+      if (!a) continue;
+      const ix = x + i * (IW + GAP);
+
+      const cdVal     = me.cd[cdKey] || 0;
+      const cdMax     = a.cd || 1;
+      const cdRatio   = Math.max(0, Math.min(1, cdVal / cdMax)); // 1=full cd, 0=ready
+      const onCd      = cdVal > 0;
+      // 大招用終極能量(ult)，其他技能用魔力(mana)
+      const isUlt     = cdKey === 'ultimate';
+      const manaCost  = a.manaCost || 0;
+      const noMana    = isUlt
+        ? (me.ult || 0) < ULT_MAX
+        : manaCost > 0 && me.mana < manaCost;
+
+      // ---- 背景 ----
+      let bgColor;
+      if (onCd)       bgColor = 'rgba(40,40,50,0.85)';      // 冷卻中：深灰
+      else if (noMana) bgColor = 'rgba(120,30,30,0.85)';    // 魔力不足：深紅
+      else             bgColor = 'rgba(60,160,255,0.85)';   // 可用：藍
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(ix, y, IW, IH);
+
+      // ---- 按鍵 + 技能名 ----
+      ctx.font = 'bold 10px system-ui';
+      ctx.textAlign = 'left';
+      // 按鍵標籤
+      ctx.fillStyle = onCd ? '#7a8a9a' : noMana ? '#ff7a7a' : '#d0eeff';
+      ctx.fillText(key, ix + 4, y + 12);
+      // 技能名
+      ctx.fillStyle = onCd ? '#9aaab8' : noMana ? '#ffaaaa' : '#ffffff';
+      ctx.font = '10px system-ui';
+      ctx.fillText(a.name, ix + 16, y + 12);
+
+      // ---- 魔力不足 / 能量不足 提示（第 2 行） ----
+      if (!onCd && noMana) {
+        ctx.fillStyle = '#ff6060';
+        ctx.font = '9px system-ui';
+        if (isUlt) {
+          const ultPct = Math.floor(((me.ult || 0) / ULT_MAX) * 100);
+          ctx.fillText(`能量 ${ultPct}%`, ix + 4, y + 22);
+        } else {
+          ctx.fillText(`魔力不足 (${manaCost})`, ix + 4, y + 22);
+        }
+      }
+
+      // ---- 冷卻倒數秒數（第 2 行） ----
+      if (onCd) {
+        ctx.fillStyle = '#aabbc8';
+        ctx.font = '9px system-ui';
+        ctx.fillText(`${cdVal.toFixed(1)}s`, ix + 4, y + 22);
+      }
+
+      // ---- CD 條（底部） ----
+      // 灰色底
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(ix, y + IH - CDH, IW, CDH);
+      if (onCd) {
+        // 冷卻殘餘 (cdRatio=1 滿 CD，=0 好了)：顯示已恢復比例
+        const readyRatio = 1 - cdRatio;
+        ctx.fillStyle = '#3aa0ff';
+        ctx.fillRect(ix, y + IH - CDH, IW * readyRatio, CDH);
+      } else if (isUlt && noMana) {
+        // 大招能量條（金色）
+        const ultRatio = Math.max(0, Math.min(1, (me.ult || 0) / ULT_MAX));
+        ctx.fillStyle = '#f9ca24';
+        ctx.fillRect(ix, y + IH - CDH, IW * ultRatio, CDH);
+      } else if (!noMana) {
+        // 可以用：滿格綠
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(ix, y + IH - CDH, IW, CDH);
+      } else {
+        // 魔力不足：橘紅
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(ix, y + IH - CDH, IW, CDH);
+      }
+
+      // ---- 外框 ----
+      ctx.strokeStyle = onCd ? 'rgba(80,100,120,0.6)' : noMana ? 'rgba(200,60,60,0.7)' : 'rgba(100,180,255,0.7)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(ix + 0.5, y + 0.5, IW - 1, IH - 1);
     }
   }
 

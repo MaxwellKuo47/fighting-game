@@ -28,7 +28,7 @@ export function applyMovement(p, input, dt) {
       const l = Math.hypot(dx, dy);
       dx /= l;
       dy /= l;
-      if (input.aim == null) p.facing = Math.atan2(dy, dx);
+      if (input.aim == null && !p.chargeState) p.facing = Math.atan2(dy, dx);
       if (rooted) {
         p.vx = 0;
         p.vy = 0;

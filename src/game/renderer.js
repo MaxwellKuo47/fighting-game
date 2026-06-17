@@ -12,7 +12,8 @@ import { createParticleSystem } from './render3d/particles.js';
 import { createEntityLayer } from './render3d/entities3d.js';
 import { createFxBus } from './render3d/fxbus.js';
 import { createHud } from './render3d/hud.js';
-import { createCharacterModel, createPartModel, animateModel, attachSkin } from './render3d/models.js';
+import { createCharacterModel, animateModel, attachSkin } from './render3d/models.js';
+import { computeBossVisualState, createBossPartModel } from './bosses/render3d.ts';
 import { sceneX, sceneZ } from './render3d/coords.js';
 import { getCharacter } from './characters.js';
 import { prepareSkin, instantiateSkin } from './render3d/skins.js';
@@ -54,6 +55,8 @@ export function createRenderer(canvas, controlScheme = 'wasd-jkl') {
   let lastT = 0;
   const models = new Map();  // pid -> { group, charId }
   const prev = new Map();    // pid -> { x, y } 上一幀世界座標 (算速度)
+  const beams = new Map();   // pid -> { group, geo, core, glow, coreMat, glowMat, colorHex, targetId, used }
+  const rangeCircles = new Map(); // pid -> { mesh, geo, mat, colorHex, range, used }
 
   // 被獵殺頭頂箭頭：單一可重用物件，每幀定位到目標頭頂 (R7 等)
   let huntPhase = 0;
@@ -68,7 +71,7 @@ export function createRenderer(canvas, controlScheme = 'wasd-jkl') {
     let e = models.get(p.id);
     if (e && e.charId !== p.charId) { disposeModel(e); models.delete(p.id); e = null; }
     if (!e) {
-      const group = p.isPart ? createPartModel(p.partColor || '#ffffff', p.scale || 1) : createCharacterModel(p.charId);
+      const group = p.isPart ? createBossPartModel(p.partColor || '#ffffff', p.scale || 1) : createCharacterModel(p.charId);
       // 召喚物 (非魔王) 依 scale 縮小，呈現「小型戰靈」感；魔王模型已於 createCharacterModel 內套 scale，勿重複。
       if (!p.isPart && !p.isBoss && p.scale && p.scale !== 1) group.scale.setScalar(p.scale);
       group.position.set(sceneX(p.x), 0, sceneZ(p.y));
@@ -177,34 +180,8 @@ export function createRenderer(canvas, controlScheme = 'wasd-jkl') {
       pr.hp = p.hp;
       if (p.cd) { if (!pr.cd) pr.cd = {}; for (const slot of CD_SLOTS) pr.cd[slot] = p.cd[slot] || 0; }
 
-      // 弱點教學：算出本地玩家相對魔王是「在背後軟肋」還是「在正面重甲弧」(與 entities.js 傷害判定同公式)，傳給模型亮燈
-      let bossWeakSelf = false, bossFrontSelf = false, coreShielded = 0;
-      if (p.isBoss) {
-        const mech = getCharacter(p.charId).mechanic;
-        if (mech && (mech.backWeak || mech.frontArmor)) {
-          const me = state.players[selfId];
-          if (me && me.alive && me.id !== p.id) {
-            let rel = Math.atan2(me.y - p.y, me.x - p.x) - p.facing;
-            while (rel > Math.PI) rel -= Math.PI * 2;
-            while (rel < -Math.PI) rel += Math.PI * 2;
-            rel = Math.abs(rel);
-            bossWeakSelf = rel > Math.PI - 0.9;   // 背後軟肋 (R1 加傷 / R3 無甲)
-            if (mech.frontArmor) bossFrontSelf = rel < 0.9; // 正面重甲弧 (R3 減傷)
-          }
-        }
-        // 魔王護盾強度 0..1：R5 雙臂任一存活=1；R6 隨存活小怪數 (每隻 perMinion，封頂 max)
-        if (mech && mech.coreArmorUntilPartsDown) {
-          for (const o of Object.values(state.players)) {
-            if (o.isPart && o.ownerId === p.id && o.alive) { coreShielded = 1; break; }
-          }
-        } else if (mech && mech.minionShield) {
-          let nMin = 0;
-          for (const o of Object.values(state.players)) if (o.isMinion && o.ownerId === p.id && o.alive) nMin++;
-          const ms = mech.minionShield;
-          if (nMin > 0) coreShielded = Math.min(1, (nMin * (ms.perMinion || 0.18)) / (ms.max || 0.72));
-        }
-      }
-      animateModel(e.group, dt, { speed, facing: p.facing, p, isSelf: p.id === selfId, attack: attackKind, hurt, downed, bossWeakSelf, bossFrontSelf, fake: !!p.isFake, coreShielded });
+      const bossVisual = p.isBoss ? computeBossVisualState(state, selfId, p, getCharacter(p.charId)) : {};
+      animateModel(e.group, dt, { speed, facing: p.facing, p, isSelf: p.id === selfId, attack: attackKind, hurt, downed, fake: !!p.isFake, ...bossVisual });
 
       // ---- 音效 (renderer-side 本地偵測；host+joiner 各自播放；缺檔靜音不報錯) ----
       // 出手音：每角色 vfx id 優先，缺檔回退泛型 (swing/cast/dash/blink/ultimate)
@@ -226,6 +203,127 @@ export function createRenderer(canvas, controlScheme = 'wasd-jkl') {
         e.wasMoving = moving;
       }
 
+      // Check for channeled beam (e.g. Necromancer Life Drain)
+      if (p.channel && p.channel.targetId) {
+        const targetModel = models.get(p.channel.targetId);
+        if (targetModel && targetModel.group.visible) {
+          const A = new THREE.Vector3(sceneX(e.rx), 26, sceneZ(e.ry));
+          const B = new THREE.Vector3(sceneX(targetModel.rx), 26, sceneZ(targetModel.ry));
+          
+          let beam = beams.get(p.id);
+          const colorHex = p.channel.color || '#7bed9f';
+          if (!beam || beam.colorHex !== colorHex || beam.targetId !== p.channel.targetId) {
+            if (beam) {
+              scene.remove(beam.group);
+              beam.geo.dispose();
+              beam.coreMat.dispose();
+              beam.glowMat.dispose();
+            }
+            
+            const group = new THREE.Group();
+            const color = new THREE.Color(colorHex);
+            const geo = new THREE.CylinderGeometry(1, 1, 1, 8, 1, true);
+            
+            const coreMat = new THREE.MeshBasicMaterial({
+              color: 0xffffff,
+              transparent: true,
+              opacity: 0.9,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+              side: THREE.DoubleSide
+            });
+            const core = new THREE.Mesh(geo, coreMat);
+            
+            const glowMat = new THREE.MeshBasicMaterial({
+              color: color,
+              transparent: true,
+              opacity: 0.45,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+              side: THREE.DoubleSide
+            });
+            const glow = new THREE.Mesh(geo, glowMat);
+            
+            group.add(core);
+            group.add(glow);
+            scene.add(group);
+            
+            beam = { group, geo, core, glow, coreMat, glowMat, colorHex, targetId: p.channel.targetId };
+            beams.set(p.id, beam);
+          }
+          
+          const direction = new THREE.Vector3().subVectors(B, A);
+          const length = direction.length();
+          const dir = direction.clone().normalize();
+          
+          const alignQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+          
+          const pulse = 0.85 + 0.15 * Math.sin(performance.now() / 80);
+          beam.core.scale.set(1.5 * pulse, 1.0, 1.5 * pulse);
+          beam.glow.scale.set(4.0 * pulse, 1.0, 4.0 * pulse);
+          
+          beam.group.position.copy(A).add(B).multiplyScalar(0.5);
+          beam.group.scale.set(1.0, length, 1.0);
+          beam.group.setRotationFromQuaternion(alignQuat);
+          
+          if (Math.random() < 0.35) {
+            const t = Math.random();
+            const px = B.x + (A.x - B.x) * t;
+            const py = B.y + (A.y - B.y) * t;
+            const pz = B.z + (A.z - B.z) * t;
+            const pdir = new THREE.Vector3().subVectors(A, B).normalize();
+            particles.spawn({
+              x: px, y: py, z: pz,
+              vx: pdir.x * 120 + (Math.random() - 0.5) * 20,
+              vy: pdir.y * 120 + (Math.random() - 0.5) * 20,
+              vz: pdir.z * 120 + (Math.random() - 0.5) * 20,
+              drag: 1.0,
+              life: 0.4 + Math.random() * 0.3,
+              size: 2.5 + Math.random() * 2.5,
+              color: colorHex,
+              fade: true
+            });
+          }
+          
+          beam.used = true;
+        }
+      }
+
+      // Check for channeled range circle
+      if (p.channel) {
+        const range = p.channel.range || 320;
+        const colorHex = p.channel.color || '#7bed9f';
+        let circle = rangeCircles.get(p.id);
+        if (!circle || circle.colorHex !== colorHex || circle.range !== range) {
+          if (circle) {
+            scene.remove(circle.mesh);
+            circle.geo.dispose();
+            circle.mat.dispose();
+          }
+          
+          const color = new THREE.Color(colorHex);
+          const geo = new THREE.RingGeometry(range * 0.985, range, 64);
+          const mat = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.35,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            side: THREE.DoubleSide
+          });
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.rotation.x = -Math.PI / 2;
+          scene.add(mesh);
+          
+          circle = { mesh, geo, mat, colorHex, range };
+          rangeCircles.set(p.id, circle);
+        }
+        
+        circle.mesh.position.set(sceneX(e.rx), 1.5, sceneZ(e.ry));
+        circle.mat.opacity = 0.35 + 0.15 * Math.sin(performance.now() / 150);
+        circle.used = true;
+      }
+
       // 聆聽者 = 本地玩家位置
       if (p.id === selfId) { selfX = e.rx; selfY = e.ry; }
     }
@@ -233,6 +331,31 @@ export function createRenderer(canvas, controlScheme = 'wasd-jkl') {
     // 離開房間的玩家才釋放模型
     for (const [pid, e] of models) {
       if (!seen.has(pid)) { disposeModel(e); models.delete(pid); prev.delete(pid); }
+    }
+
+    // Clean up unused beams
+    for (const [pid, beam] of beams) {
+      if (!beam.used) {
+        scene.remove(beam.group);
+        beam.geo.dispose();
+        beam.coreMat.dispose();
+        beam.glowMat.dispose();
+        beams.delete(pid);
+      } else {
+        beam.used = false;
+      }
+    }
+
+    // Clean up unused range circles
+    for (const [pid, circle] of rangeCircles) {
+      if (!circle.used) {
+        scene.remove(circle.mesh);
+        circle.geo.dispose();
+        circle.mat.dispose();
+        rangeCircles.delete(pid);
+      } else {
+        circle.used = false;
+      }
     }
   }
 

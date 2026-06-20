@@ -3,7 +3,7 @@
 // 讀作「危險、別踩」，而不是「漂亮的光圈」。配上 hud.js 站入時的全螢幕警示。
 import * as THREE from 'three';
 import { registerVfx } from '../../render3d/vfx/registry.js';
-import { slashBlade, cone, burst, ring } from '../../render3d/vfx/lib.js';
+import { slashBlade, cone, burst, ring, sphereFlash } from '../../render3d/vfx/lib.js';
 
 const TOX = '#7fff00', GREEN = '#9acd32', PURPLE = '#6a3d9a';
 
@@ -19,23 +19,35 @@ export function loadVfx() {
   // 腐蝕毒吐：飛行毒球（一路滴毒）+ 命中潑濺
   registerVfx('boss_lizard_spit', {
     projectile(ctx: any, pr: any) {
-      const r = pr.radius || 16;
+      const r = (pr.radius || 16) * 1.7; // 視覺放大成大顆華麗毒球（不影響碰撞 hitbox）
       const g = new THREE.Group();
-      const core = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), new THREE.MeshStandardMaterial({ color: new THREE.Color(TOX), emissive: new THREE.Color('#3a7a00'), emissiveIntensity: 0.8, roughness: 0.4, transparent: true, opacity: 0.92 }));
+      // 外層毒氣暈
+      const aura = new THREE.Mesh(new THREE.SphereGeometry(r * 1.5, 16, 12), new THREE.MeshBasicMaterial({ color: new THREE.Color(TOX), transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false }));
+      g.add(aura);
+      // 中層毒漿球
+      const mid = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), new THREE.MeshStandardMaterial({ color: new THREE.Color('#5a8f2f'), emissive: new THREE.Color(TOX), emissiveIntensity: 1.6, roughness: 0.5, transparent: true, opacity: 0.9 }));
+      g.add(mid);
+      // 亮核
+      const core = new THREE.Mesh(new THREE.IcosahedronGeometry(r * 0.55, 1), new THREE.MeshBasicMaterial({ color: new THREE.Color('#e6ff8a'), transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending }));
       g.add(core);
+      // 旋轉毒環
+      const tring = new THREE.Mesh(new THREE.TorusGeometry(r * 1.3, r * 0.12, 6, 18), new THREE.MeshBasicMaterial({ color: new THREE.Color(PURPLE), transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
+      tring.rotation.x = Math.PI / 2; g.add(tring);
       let t = 0, em = 0;
       return {
         object3D: g,
         update(dt: number) {
-          t += dt; core.rotation.y += dt * 4; core.rotation.x += dt * 3; core.scale.setScalar(1 + 0.12 * Math.sin(t * 18));
+          t += dt; mid.rotation.y += dt * 3; mid.rotation.x += dt * 2; tring.rotation.z += dt * 5;
+          core.scale.setScalar(1 + 0.14 * Math.sin(t * 18)); aura.scale.setScalar(1 + 0.08 * Math.sin(t * 10));
           em -= dt;
-          if (em <= 0) { em = 0.05; ctx.particles.spawn({ x: g.position.x, y: g.position.y, z: g.position.z, vx: (Math.random() - 0.5) * 20, vy: -20 - Math.random() * 20, vz: (Math.random() - 0.5) * 20, gravity: 120, drag: 1.5, life: 0.4, size: 3, color: Math.random() < 0.7 ? TOX : PURPLE, fade: true }); }
+          if (em <= 0) { em = 0.03; ctx.particles.spawn({ x: g.position.x, y: g.position.y, z: g.position.z, vx: (Math.random() - 0.5) * 26, vy: -18 - Math.random() * 28, vz: (Math.random() - 0.5) * 26, gravity: 120, drag: 1.5, life: 0.5, size: 3.5 + Math.random() * 2.5, color: Math.random() < 0.65 ? TOX : PURPLE, fade: true }); }
         },
       };
     },
     onHit(ctx: any, f: any, c: any) {
-      ring(ctx, c, { color: GREEN, from: 6, to: (f.radius || 16) * 2.2, life: 0.34, y: 2, alpha: 0.7 });
-      burst(ctx, c, { color: [TOX, GREEN, PURPLE], count: 16, speed: 180, up: 30, flat: true, life: 0.5, size: 3.5 });
+      sphereFlash(ctx, c, { color: TOX, from: 6, to: 52, life: 0.26, alpha: 0.8 });
+      ring(ctx, c, { color: GREEN, from: 8, to: (f.radius || 16) * 3.4, life: 0.42, y: 2, alpha: 0.8, ease: true });
+      burst(ctx, c, { color: [TOX, GREEN, PURPLE], count: 26, speed: 220, up: 40, flat: true, life: 0.6, size: 4.5 });
     },
   });
 

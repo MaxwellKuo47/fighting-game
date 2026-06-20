@@ -100,8 +100,8 @@ export function buildModel(ctx) {
 // 右手凝聚的虛空巨劍（黑刃＋星光裂縫刃緣）
 export function buildWeapon(hand, ctx) {
   const { add, reg, mat } = createWeaponKit(hand, ctx);
-  hand.rotation.set(0, 0, -0.8); // 劍向前傾，不再垂直穿過身軀
-  hand.position.x += 4;
+  hand.rotation.set(0, 0, -1.25); // 盔甲巨大，劍向前傾更多以免穿出
+  hand.position.x += 12;
   const voidMat = reg(mat(VOID, { rough: 0.25, metal: 0.7, emissive: new THREE.Color('#161630'), ei: 0.4 }));
   const crackMat = reg(mat('#ffffff', { emissive: new THREE.Color('#e6e8ff'), ei: 2.6, rough: 0.2 }));
   const goldMat = reg(mat(GOLD, { emissive: new THREE.Color(GOLD), ei: 1.2, metal: 0.7, rough: 0.3 }));

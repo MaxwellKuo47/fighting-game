@@ -127,8 +127,8 @@ export function buildModel(ctx) {
 // 右手聖墮審判巨劍：金白聖刃＋暗紫墮刃
 export function buildWeapon(hand, ctx) {
   const { add, reg, mat } = createWeaponKit(hand, ctx);
-  hand.rotation.set(0, 0, -0.8); // 劍向前傾，不再垂直穿過身軀
-  hand.position.x += 4;
+  hand.rotation.set(0, 0, -1.05); // 劍向前傾，不再碰到身軀
+  hand.position.x += 6;
   const goldMat = reg(mat(GOLD, { rough: 0.3, metal: 0.9, emissive: new THREE.Color(GOLD), ei: 0.4 }));
   const lightMat = reg(mat(LIGHT, { emissive: new THREE.Color(LIGHT), ei: 2.2, rough: 0.3 }));
   const shadowMat = reg(mat('#b08cff', { emissive: new THREE.Color(SHADOW), ei: 1.6, rough: 0.4 }));

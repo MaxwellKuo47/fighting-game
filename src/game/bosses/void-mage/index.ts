@@ -2,6 +2,7 @@ import { BaseBoss } from '../BaseBoss.ts';
 import { BURN, STUN, SLOW, ROOT, CHILL } from '../effects.js';
 import { aiProfile } from './ai.ts';
 import { modelConfig, buildModel, buildWeapon } from './model.ts';
+import { loadVfx } from './vfx.ts';
 import './action.ts';
 import { scrambleAll } from '../phaseHooks.ts';
 
@@ -54,4 +55,4 @@ const data = {
     ultimate: { name: '時光倒流', type: 'time_rewind', rewindSeconds: 3.0, dmg: 90, radius: 150, cd: 18, windup: 1.2, telegraph: 'circle', color: '#a06cff', vfx: 'boss_void_ult' },
   };
 
-export default new BaseBoss(data, { aiProfile, modelConfig, buildModel, buildWeapon });
+export default new BaseBoss(data, { aiProfile, modelConfig, buildModel, buildWeapon, loadVfx });

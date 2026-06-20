@@ -65,19 +65,23 @@ export function buildModel(ctx) {
   const r2 = runeRing(torsoW * 0.6, 1.5, goldMat, robeTrimMat, 8); r2.position.y = 6; r2.rotation.set(Math.PI / 2.4, 0.6, 0.3); torso.add(r2);
 
   // --- 頭：兜帽下虛空臉孔 + 紫光眼 + 金符文第三眼 ---
-  const head = new THREE.Mesh(new THREE.SphereGeometry(5.2 * bulk, 12, 10), voidMat);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(3.4 * bulk, 12, 10), voidMat);
   head.castShadow = true;
-  const hood = new THREE.Mesh(new THREE.ConeGeometry(7 * bulk, 14 * bulk, 8), robeMat);
-  hood.position.set(-1.5 * bulk, 3 * bulk, 0); hood.rotation.z = -0.12; head.add(hood);
-  const brim = new THREE.Mesh(new THREE.TorusGeometry(5 * bulk, 1.5, 8, 16), robeTrimMat);
-  brim.position.set(frontX * 0.4, -1 * bulk, 0); brim.rotation.y = Math.PI / 2; brim.scale.set(1, 1.2, 1); head.add(brim);
+  // 兜帽外殼（加大包覆，黑頭內縮不凸出兩側）
+  const hood = new THREE.Mesh(new THREE.ConeGeometry(7.6 * bulk, 16 * bulk, 8), robeMat);
+  hood.position.set(-1.2 * bulk, 3.5 * bulk, 0); hood.rotation.z = -0.1; head.add(hood);
+  // 兜帽下緣垂布（包住頭兩側與後方）
+  const cowl = new THREE.Mesh(new THREE.ConeGeometry(6.4 * bulk, 8.5 * bulk, 8), robeMat);
+  cowl.position.set(-1 * bulk, -1 * bulk, 0); head.add(cowl);
+  const brim = new THREE.Mesh(new THREE.TorusGeometry(4.4 * bulk, 1.5, 8, 16), robeTrimMat);
+  brim.position.set(frontX * 0.46, -0.5 * bulk, 0); brim.rotation.y = Math.PI / 2; brim.scale.set(1, 1.25, 1); head.add(brim);
   // 金色符文第三眼
   const third = new THREE.Mesh(new THREE.OctahedronGeometry(1.8, 0), goldMat);
-  third.position.set(frontX * 0.78, 2.4 * bulk, 0); faceGroup.add(third);
+  third.position.set(frontX * 0.86, 2.2 * bulk, 0); faceGroup.add(third);
   // 紫光雙眼（faceGroup；scale.y 受眨眼）
   const eyeGeo = new THREE.SphereGeometry(1.7, 8, 8);
-  face.eyeL = new THREE.Mesh(eyeGeo, glowMat); face.eyeL.position.set(frontX * 0.7, 0.3, -2.1 * bulk); face.eyeL.scale.set(1, 1.4, 0.8);
-  face.eyeR = new THREE.Mesh(eyeGeo, glowMat); face.eyeR.position.set(frontX * 0.7, 0.3, 2.1 * bulk); face.eyeR.scale.set(1, 1.4, 0.8);
+  face.eyeL = new THREE.Mesh(eyeGeo, glowMat); face.eyeL.position.set(frontX * 0.84, 0.3, -1.7 * bulk); face.eyeL.scale.set(1, 1.4, 0.8);
+  face.eyeR = new THREE.Mesh(eyeGeo, glowMat); face.eyeR.position.set(frontX * 0.84, 0.3, 1.7 * bulk); face.eyeR.scale.set(1, 1.4, 0.8);
   faceGroup.add(face.eyeL); faceGroup.add(face.eyeR);
 
   // --- 雙臂：垂袖 + 凝聚虛空紫光的手 ---

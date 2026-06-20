@@ -48,24 +48,27 @@ export function buildModel(ctx) {
     flame.position.set(torsoW * 0.48, 6 + i * 4, (i - 1) * 5); torso.add(flame);
   }
 
-  // --- 頭：兜帽下的虛空臉孔 + 綠靈火眼 ---
-  const head = new THREE.Mesh(new THREE.SphereGeometry(5.5 * bulk, 12, 10), voidMat);
+  // --- 頭：兜帽下的虛空臉孔 + 綠靈火眼（黑頭縮小內縮，不再凸出兜帽兩側）---
+  const head = new THREE.Mesh(new THREE.SphereGeometry(3.6 * bulk, 12, 10), voidMat);
   head.castShadow = true;
-  // 尖兜帽
-  const hood = new THREE.Mesh(new THREE.ConeGeometry(7.5 * bulk, 15 * bulk, 8), robeMat);
-  hood.position.set(-1.5 * bulk, 3 * bulk, 0); hood.rotation.z = -0.15; head.add(hood);
+  // 尖兜帽外殼（加大包覆）
+  const hood = new THREE.Mesh(new THREE.ConeGeometry(8 * bulk, 17 * bulk, 8), robeMat);
+  hood.position.set(-1.2 * bulk, 3.5 * bulk, 0); hood.rotation.z = -0.12; head.add(hood);
+  // 兜帽下緣垂布（包住頭兩側與後方）
+  const cowl = new THREE.Mesh(new THREE.ConeGeometry(6.8 * bulk, 9 * bulk, 8), robeMat);
+  cowl.position.set(-1 * bulk, -1 * bulk, 0); head.add(cowl);
   // 兜帽邊緣（露臉開口）
-  const brim = new THREE.Mesh(new THREE.TorusGeometry(5.2 * bulk, 1.6, 8, 16), robeDarkMat);
-  brim.position.set(frontX * 0.4, -1 * bulk, 0); brim.rotation.y = Math.PI / 2; brim.scale.set(1, 1.2, 1); head.add(brim);
+  const brim = new THREE.Mesh(new THREE.TorusGeometry(4.6 * bulk, 1.6, 8, 16), robeDarkMat);
+  brim.position.set(frontX * 0.46, -0.5 * bulk, 0); brim.rotation.y = Math.PI / 2; brim.scale.set(1, 1.25, 1); head.add(brim);
   // 綠靈火雙眼（faceGroup；scale.y 受眨眼）
   const eyeGeo = new THREE.SphereGeometry(1.8, 8, 8);
-  face.eyeL = new THREE.Mesh(eyeGeo, soulMat); face.eyeL.position.set(frontX * 0.7, 0.5, -2.2 * bulk); face.eyeL.scale.set(1, 1.5, 0.8);
-  face.eyeR = new THREE.Mesh(eyeGeo, soulMat); face.eyeR.position.set(frontX * 0.7, 0.5, 2.2 * bulk); face.eyeR.scale.set(1, 1.5, 0.8);
+  face.eyeL = new THREE.Mesh(eyeGeo, soulMat); face.eyeL.position.set(frontX * 0.82, 0.5, -1.8 * bulk); face.eyeL.scale.set(1, 1.5, 0.8);
+  face.eyeR = new THREE.Mesh(eyeGeo, soulMat); face.eyeR.position.set(frontX * 0.82, 0.5, 1.8 * bulk); face.eyeR.scale.set(1, 1.5, 0.8);
   faceGroup.add(face.eyeL); faceGroup.add(face.eyeR);
   // 眼上飄升的靈火尾
   for (const sz of [-1, 1]) {
     const wisp = new THREE.Mesh(new THREE.ConeGeometry(0.8, 5 * bulk, 4), soulMat);
-    wisp.position.set(frontX * 0.7, 3 * bulk, sz * 2.2 * bulk); faceGroup.add(wisp);
+    wisp.position.set(frontX * 0.82, 3 * bulk, sz * 1.8 * bulk); faceGroup.add(wisp);
   }
 
   // --- 雙臂：垂袖 + 綠靈火手 ---

@@ -69,14 +69,11 @@ export function buildModel(ctx) {
   torso.add(belly);
   const ventral = new THREE.Mesh(new THREE.SphereGeometry(torsoW * 0.46, 14, 10), bellyMat);
   ventral.scale.set(1.86, 0.4, 0.74); ventral.position.y = -11; torso.add(ventral);
-  // 背部紫色鞍斑（上半身染紫，破除全綠的鱷魚感；綠腹保留）
-  const saddle = new THREE.Mesh(new THREE.SphereGeometry(torsoW * 0.47, 18, 12), purpleMat);
-  saddle.scale.set(1.84, 0.46, 0.84); saddle.position.y = 1.5; torso.add(saddle);
-  // 橫向紫斑紋帶
-  for (let i = 0; i < 6; i++) {
-    const x = bodyHalf * 0.6 - i * bodyHalf * 0.26;
-    const stripe = new THREE.Mesh(new THREE.SphereGeometry(torsoW * 0.18, 10, 8), spikeMat);
-    stripe.scale.set(0.42, 0.5, 1.65); stripe.position.set(x, 3.5, 0); torso.add(stripe);
+  // 背部橫向紫斑紋帶（點綴用，不要一大坨紫）
+  for (let i = 0; i < 5; i++) {
+    const x = bodyHalf * 0.55 - i * bodyHalf * 0.28;
+    const stripe = new THREE.Mesh(new THREE.SphereGeometry(torsoW * 0.16, 10, 8), spikeMat);
+    stripe.scale.set(0.26, 0.4, 1.4); stripe.position.set(x, 3.8, 0); torso.add(stripe);
   }
 
   // --- 背脊鱗棘（後掃）+ 兩側鱗甲列 + 暗紫毒斑 + 毒腺滴毒 ---

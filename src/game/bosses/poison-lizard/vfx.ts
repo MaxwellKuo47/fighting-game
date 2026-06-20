@@ -3,8 +3,82 @@
 // 讀作「危險、別踩」，而不是「漂亮的光圈」。配上 hud.js 站入時的全螢幕警示。
 import * as THREE from 'three';
 import { registerVfx } from '../../render3d/vfx/registry.js';
+import { slashBlade, cone, burst, ring } from '../../render3d/vfx/lib.js';
+
+const TOX = '#7fff00', GREEN = '#9acd32', PURPLE = '#6a3d9a';
 
 export function loadVfx() {
+  // 毒爪：快速綠色爪擊弧 + 毒滴噴濺
+  registerVfx('boss_lizard_claw', {
+    onCast(ctx: any, f: any, c: any) {
+      slashBlade(ctx, c, f.facing, { color: [TOX, PURPLE], len: (f.range || 80) * 1.15, swing: 1.2, life: 0.24, y: 14, sparkCount: 8, alpha: 0.9 });
+      cone(ctx, c, f.facing, { color: [TOX, GREEN, PURPLE], count: 12, speed: 220, spread: 0.6, up: 20, life: 0.4, size: 3.2 });
+    },
+  });
+
+  // 腐蝕毒吐：飛行毒球（一路滴毒）+ 命中潑濺
+  registerVfx('boss_lizard_spit', {
+    projectile(ctx: any, pr: any) {
+      const r = pr.radius || 16;
+      const g = new THREE.Group();
+      const core = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), new THREE.MeshStandardMaterial({ color: new THREE.Color(TOX), emissive: new THREE.Color('#3a7a00'), emissiveIntensity: 0.8, roughness: 0.4, transparent: true, opacity: 0.92 }));
+      g.add(core);
+      let t = 0, em = 0;
+      return {
+        object3D: g,
+        update(dt: number) {
+          t += dt; core.rotation.y += dt * 4; core.rotation.x += dt * 3; core.scale.setScalar(1 + 0.12 * Math.sin(t * 18));
+          em -= dt;
+          if (em <= 0) { em = 0.05; ctx.particles.spawn({ x: g.position.x, y: g.position.y, z: g.position.z, vx: (Math.random() - 0.5) * 20, vy: -20 - Math.random() * 20, vz: (Math.random() - 0.5) * 20, gravity: 120, drag: 1.5, life: 0.4, size: 3, color: Math.random() < 0.7 ? TOX : PURPLE, fade: true }); }
+        },
+      };
+    },
+    onHit(ctx: any, f: any, c: any) {
+      ring(ctx, c, { color: GREEN, from: 6, to: (f.radius || 16) * 2.2, life: 0.34, y: 2, alpha: 0.7 });
+      burst(ctx, c, { color: [TOX, GREEN, PURPLE], count: 16, speed: 180, up: 30, flat: true, life: 0.5, size: 3.5 });
+    },
+  });
+
+  // 毒沼飛撲：起跳/落地紫綠爆濺（地面毒沼另由 boss_lizard_pool）
+  registerVfx('boss_lizard_pounce', {
+    onCast(ctx: any, f: any, c: any) {
+      burst(ctx, c, { color: [PURPLE, TOX], count: 18, speed: 200, up: 60, life: 0.5, size: 4 });
+      ring(ctx, c, { color: PURPLE, from: 8, to: 90, life: 0.4, y: 2, alpha: 0.6 });
+    },
+    onHit(ctx: any, f: any, c: any) {
+      ring(ctx, c, { color: TOX, from: 10, to: (f.radius || 120) * 1.2, life: 0.42, y: 2, alpha: 0.75, ease: true });
+      burst(ctx, c, { color: [TOX, GREEN, PURPLE], count: 24, speed: 240, up: 50, flat: true, life: 0.55, size: 4.5 });
+      ctx.sceneMgr.addShake(8);
+    },
+  });
+
+  // 瘴氣風暴：旋轉綠色毒霧領域 + 施放爆發
+  registerVfx('boss_lizard_ult', {
+    onCast(ctx: any, f: any, c: any) {
+      burst(ctx, c, { color: [TOX, PURPLE], count: 30, speed: 220, up: 60, life: 0.6, size: 4.5 });
+      ctx.sceneMgr.addShake(12); ctx.sceneMgr.addFlash(0.18, TOX);
+    },
+    zone(ctx: any, z: any) {
+      const R = z.radius || 120;
+      const g = new THREE.Group();
+      const discs: any[] = [];
+      for (let i = 0; i < 3; i++) {
+        const d = new THREE.Mesh(new THREE.CircleGeometry(R * (0.6 + i * 0.2), 36), new THREE.MeshBasicMaterial({ color: new THREE.Color(i % 2 ? TOX : '#4e7a2f'), transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+        d.rotation.x = -Math.PI / 2; d.position.y = 2 + i; g.add(d); discs.push(d);
+      }
+      let t = 0, em = 0;
+      return {
+        object3D: g,
+        update(dt: number) {
+          t += dt;
+          for (let i = 0; i < discs.length; i++) { discs[i].rotation.z += dt * (0.6 + i * 0.4) * (i % 2 ? 1 : -1); discs[i].material.opacity = 0.14 + 0.08 * Math.sin(t * 3 + i); }
+          em -= dt;
+          if (em <= 0) { em = 0.06; const a = Math.random() * 6.283, rr = Math.random() * R * 0.9; ctx.particles.spawn({ x: g.position.x + Math.cos(a) * rr, y: 2, z: g.position.z + Math.sin(a) * rr, vx: 0, vy: 30 + Math.random() * 50, vz: 0, gravity: -12, drag: 1, life: 0.8, size: 4, color: Math.random() < 0.7 ? TOX : PURPLE, fade: true }); }
+        },
+      };
+    },
+  });
+
   registerVfx('boss_lizard_pool', {
     zone(ctx: any, z: any) {
       const { particles } = ctx;

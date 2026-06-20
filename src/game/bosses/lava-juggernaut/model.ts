@@ -98,6 +98,8 @@ export function buildModel(ctx) {
 // 右手熔岩巨劍：鐵刃 + 中央熔岩槽 + 餘燼刃緣
 export function buildWeapon(hand, ctx) {
   const { add, reg, mat } = createWeaponKit(hand, ctx);
+  hand.rotation.set(0, 0, -0.8); // 劍向前傾，不再垂直穿過鎧甲
+  hand.position.x += 4;
   const ironMat = reg(mat(IRON, { rough: 0.42, metal: 0.9 }));
   const lavaMat = reg(mat(LAVA, { emissive: new THREE.Color(LAVA), ei: 2.2, rough: 0.4, metal: 0.2 }));
   const emberMat = reg(mat(EMBER, { emissive: new THREE.Color(EMBER), ei: 1.4, rough: 0.5, metal: 0.3 }));

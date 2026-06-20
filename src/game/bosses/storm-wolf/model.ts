@@ -19,8 +19,8 @@ export function buildModel(ctx) {
   const clawMat = reg(mat('#eef3f7', { rough: 0.4, metal: 0.2 }));
   const noseMat = reg(mat('#161b22', { rough: 0.5 }));
 
-  const bodyHalf = torsoW * 0.85, sideZ = torsoW * 0.42;
-  const HEAD_DX = bodyHalf + 6, HEAD_DY = -36; // 頭前伸、約肩高
+  const bodyHalf = torsoW * 0.6, sideZ = torsoW * 0.34;
+  const HEAD_DX = bodyHalf + 2, HEAD_DY = -32; // 頭前伸、抬於肩上（站姿）
 
   // 鋸齒電弧（細長發光折線）
   const bolt = (parent, x, y, z, s = 1) => {
@@ -34,13 +34,16 @@ export function buildModel(ctx) {
 
   // --- 軀幹：低伏長身 + 肩隆 + 腹甲 ---
   const torso = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.SphereGeometry(torsoW * 0.46, 16, 12), furMat);
-  body.scale.set(1.8, 0.66, 0.92); body.position.y = -3; body.castShadow = true; torso.add(body);
-  const belly = new THREE.Mesh(new THREE.SphereGeometry(torsoW * 0.42, 12, 10), bellyMat);
-  belly.scale.set(1.7, 0.42, 0.78); belly.position.y = -9; torso.add(belly);
-  // 肩部隆起
-  const hump = new THREE.Mesh(new THREE.SphereGeometry(torsoW * 0.34, 14, 12), furMat);
-  hump.scale.set(0.9, 0.9, 0.9); hump.position.set(bodyHalf * 0.5, 6, 0); hump.castShadow = true; torso.add(hump);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(torsoW * 0.3, 16, 12), furMat);
+  body.scale.set(1.7, 0.62, 0.85); body.position.y = -3; body.castShadow = true; torso.add(body);
+  const belly = new THREE.Mesh(new THREE.SphereGeometry(torsoW * 0.26, 12, 10), bellyMat);
+  belly.scale.set(1.55, 0.5, 0.72); belly.position.y = -7; torso.add(belly);
+  // 肩胛隆起（前高）
+  const hump = new THREE.Mesh(new THREE.SphereGeometry(torsoW * 0.24, 14, 12), furMat);
+  hump.scale.set(0.9, 1.05, 0.95); hump.position.set(bodyHalf * 0.5, 5, 0); hump.castShadow = true; torso.add(hump);
+  // 後臀隆起
+  const haunch = new THREE.Mesh(new THREE.SphereGeometry(torsoW * 0.22, 12, 10), furMat);
+  haunch.scale.set(0.95, 1.0, 1.0); haunch.position.set(-bodyHalf * 0.55, 2, 0); haunch.castShadow = true; torso.add(haunch);
 
   // --- 鬃毛 + 電弧（頸→背）---
   for (let i = 0; i < 8; i++) {
@@ -95,7 +98,7 @@ export function buildModel(ctx) {
   faceGroup.add(face.eyeL); faceGroup.add(face.eyeR);
 
   // --- 四足（前足=arm、後足=leg；帶電利爪）---
-  const legW = 3.8 * bulk, legLen = 16;
+  const legW = 3.4 * bulk, legLen = 25; // 加長腿、提高站姿（不再像短腳蜥蜴）
   const mkPaw = (pivot) => {
     for (let i = -1; i <= 1; i++) {
       const claw = new THREE.Mesh(new THREE.ConeGeometry(1.3, 5, 4), clawMat);
@@ -106,11 +109,11 @@ export function buildModel(ctx) {
   const armR = mkLimb(0, 0, true, furMat, furDarkMat, ELEC, legW, legLen);
   const legL = mkLimb(0, 0, false, furMat, furDarkMat, ELEC, legW, legLen);
   const legR = mkLimb(0, 0, false, furMat, furDarkMat, ELEC, legW, legLen);
-  armL.position.set(bodyHalf * 0.58, 8, -sideZ);
-  armR.position.set(bodyHalf * 0.58, 8, sideZ);
-  legL.position.set(-bodyHalf * 0.5, 9, -sideZ * 1.06);
-  legR.position.set(-bodyHalf * 0.5, 9, sideZ * 1.06);
-  legL.rotation.x = -0.25; legR.rotation.x = 0.25;
+  armL.position.set(bodyHalf * 0.62, 9, -sideZ);
+  armR.position.set(bodyHalf * 0.62, 9, sideZ);
+  legL.position.set(-bodyHalf * 0.58, 10, -sideZ);
+  legR.position.set(-bodyHalf * 0.58, 10, sideZ);
+  legL.rotation.x = -0.1; legR.rotation.x = 0.1;
   for (const p of [armL, armR, legL, legR]) mkPaw(p);
 
   return { torso, head, armL, armR, legL, legR };

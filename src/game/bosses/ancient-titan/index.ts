@@ -8,6 +8,7 @@ const data = {
     id: 104, round: 5, name: '廢墟古代巨兵', subtitle: '機關核心',
     color: '#95a5a6', shape: 'square', maxHp: 6000, maxMana: 999, speed: 90,
     baseHp: 6000,
+    deathVfx: 'boss_titan_death',
     appearance: {
       size: '極巨大 (約玩家 3 倍，全場最大)',
       style: '石與金屬構成的遠古守護巨像，覆滿苔蘚與廢墟碎石，胸口符文核心發藍光。左臂為藍光雷射砲、右臂為火星四濺的旋轉巨鋸。配色：石灰 #95a5a6 + 金屬銅 #b08d57 + 符文藍 #49d0ff。',

@@ -118,4 +118,35 @@ export function loadVfx() {
       };
     },
   });
+
+  // 死亡演出：機關核心過載崩解 — 核心藍白炸裂、中央符文能量柱噴發、巨石塊崩落拋飛、揚塵與落塵
+  registerVfx('boss_titan_death', {
+    onDeath(ctx, f, c) {
+      const { THREE: T, addTransient, sceneMgr, particles } = ctx;
+      sceneMgr.addShake(28); sceneMgr.addFlash(0.48, RUNE);
+      sphereFlash(ctx, c, { color: '#ffffff', from: 12, to: 130, life: 0.42, alpha: 0.98 });
+      sphereFlash(ctx, c, { color: RUNE, from: 8, to: 90, life: 0.32, alpha: 0.7 });
+      ring(ctx, c, { color: RUNE, from: 18, to: 340, life: 0.7, y: 4, alpha: 0.9, ease: true });
+      ring(ctx, c, { color: RUNED, from: 12, to: 250, life: 0.55, y: 5, alpha: 0.75 });
+      ring(ctx, c, { color: STONE, from: 10, to: 190, life: 0.85, y: 2, alpha: 0.6, ease: true });
+      // 中央符文能量柱噴發（雙層）
+      const pillar = addCol(RUNE, 0, 30, 50, 320); pillar.position.set(c.x, 160, c.z);
+      addTransient(pillar, 0.9, (m, t) => { const e = Math.min(1, t / 0.16), fade = 1 - Math.max(0, (t - 0.4) / 0.5); m.material.opacity = Math.max(0, 0.7 * e * fade); m.scale.y = 0.4 + e; });
+      const pillarCore = addCol('#ffffff', 0, 14, 22, 320); pillarCore.position.set(c.x, 160, c.z);
+      addTransient(pillarCore, 0.85, (m, t) => { const e = Math.min(1, t / 0.16), fade = 1 - Math.max(0, (t - 0.4) / 0.5); m.material.opacity = Math.max(0, 0.9 * e * fade); m.scale.y = 0.4 + e; });
+      // 巨石塊崩落拋飛（翻滾＋拋物線＋落下淡出）
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * 6.283 + Math.random() * 0.4, sz = 18 + Math.random() * 16;
+        const block = new T.Mesh(new T.BoxGeometry(sz, sz, sz), new T.MeshStandardMaterial({ color: new T.Color(STONE), roughness: 0.9, metalness: 0.1, transparent: true, opacity: 1 }));
+        block.position.set(c.x, 40, c.z); const d = 150 + Math.random() * 120, up = 90 + Math.random() * 100;
+        addTransient(block, 1.1, (m, t) => { m.position.set(c.x + Math.cos(a) * d * t, 40 + up * t - 200 * t * t, c.z + Math.sin(a) * d * t); m.rotation.x += 0.18; m.rotation.z += 0.15; m.material.opacity = 1 - Math.max(0, (t - 0.6) / 0.4); });
+      }
+      // 符文火星 + 揚塵柱 + 石塵爆散
+      burst(ctx, c, { color: [RUNE, RUNED, '#ffffff'], count: 40, speed: 340, up: 90, life: 0.8, size: 5 });
+      column(ctx, c, { color: ['#6a6258', STONE], count: 30, radius: 90, speed: 260, life: 0.9, size: 6.5 });
+      burst(ctx, c, { color: [STONE, '#7d7066'], count: 30, speed: 260, up: 50, flat: true, life: 0.9, size: 6 });
+      // 落塵
+      for (let i = 0; i < 30; i++) { const a = Math.random() * 6.283, rr = Math.random() * 120; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 8, z: c.z + Math.sin(a) * rr, vx: Math.cos(a) * 100, vy: 30 + Math.random() * 60, vz: Math.sin(a) * 100, gravity: -8, drag: 1.2, life: 1.1 + Math.random() * 0.5, size: 6 + Math.random() * 5, color: '#8a8076', fade: true }); }
+    },
+  });
 }

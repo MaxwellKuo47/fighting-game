@@ -8,6 +8,7 @@ const data = {
     id: 106, round: 7, name: '風暴巨狼', subtitle: '狂暴之爪',
     color: '#4a6fa5', shape: 'triangle', maxHp: 7000, maxMana: 999, speed: 250,
     baseHp: 7000,
+    deathVfx: 'boss_wolf_death',
     appearance: {
       size: '等身偏大 (約玩家 2.2 倍)，低伏蓄勢',
       style: '籠罩雷暴的巨狼，深灰鬃毛間奔竄藍白電弧，雙眼發藍光，利爪帶電。奔跑時拖出殘影與雷光。配色：暴雲灰 #4a6fa5 + 雷電藍白 #aee3ff + 怒目藍。',

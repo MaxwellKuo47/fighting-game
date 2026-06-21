@@ -73,4 +73,25 @@ export function loadVfx() {
       ctx.sceneMgr.addShake(15); ctx.sceneMgr.addFlash(0.24, ELEC);
     },
   });
+
+  // 死亡演出：雷霆轟頂崩散 — 雙道巨型落雷、雷擊光柱、白爆、一圈亂舞鋸齒落雷、放射電弧與靜電飛濺
+  registerVfx('boss_wolf_death', {
+    onDeath(ctx, f, c) {
+      const { addTransient, sceneMgr, particles } = ctx;
+      sceneMgr.addShake(24); sceneMgr.addFlash(0.5, ELEC);
+      bolt(ctx, c.x, c.z, 300, true); bolt(ctx, c.x, c.z, 300, true);
+      sphereFlash(ctx, c, { color: '#ffffff', from: 12, to: 130, life: 0.4, alpha: 0.98 });
+      sphereFlash(ctx, c, { color: BLUE, from: 8, to: 80, life: 0.3, alpha: 0.65 });
+      pillar(ctx, c, { color: ELEC, h: 280, r: 22, taper: 0.2, life: 0.5, alpha: 0.85, grow: 0.3 });
+      pillar(ctx, c, { color: WHITE, h: 280, r: 9, taper: 0.15, life: 0.42, alpha: 0.95 });
+      ring(ctx, c, { color: ELEC, from: 18, to: 340, life: 0.6, y: 3, alpha: 0.9, ease: true });
+      ring(ctx, c, { color: WHITE, from: 12, to: 240, life: 0.45, y: 4, alpha: 0.75 });
+      ring(ctx, c, { color: BLUE, from: 10, to: 180, life: 0.7, y: 2, alpha: 0.6, ease: true });
+      // 周圍一圈亂舞鋸齒落雷
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * 6.283, rr = 70 + Math.random() * 90; bolt(ctx, c.x + Math.cos(a) * rr, c.z + Math.sin(a) * rr, 180 + Math.random() * 80, Math.random() < 0.4); }
+      // 放射電火星 + 靜電飛濺
+      burst(ctx, c, { color: [ELEC, WHITE, BLUE], count: 48, speed: 360, up: 80, life: 0.7, size: 4.5 });
+      for (let i = 0; i < 40; i++) { const a = Math.random() * 6.283, rr = Math.random() * 60; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 6 + Math.random() * 40, z: c.z + Math.sin(a) * rr, vx: Math.cos(a) * (200 + Math.random() * 200), vy: 40 + Math.random() * 120, vz: Math.sin(a) * (200 + Math.random() * 200), gravity: 120, drag: 1.4, life: 0.6 + Math.random() * 0.4, size: 3 + Math.random() * 2.5, color: Math.random() < 0.5 ? ELEC : WHITE, fade: true }); }
+    },
+  });
 }

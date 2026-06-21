@@ -8,6 +8,7 @@ const data = {
     id: 100, round: 1, name: '巨木傀儡', subtitle: '森林守護者',
     color: '#6b8e23', shape: 'square', maxHp: 3500, maxMana: 999, speed: 110,
     baseHp: 3500,
+    deathVfx: 'boss_golem_death',
     appearance: {
       size: '巨大 (約玩家 2.2 倍)',
       style: '木石魔像，覆滿樹皮與苔蘚的軀幹，胸口嵌一顆持續發光的綠色生命核心，雙臂是粗壯的樹幹。配色：樹皮褐 #6b4a2b + 苔綠 #6b8e23 + 核心翠光。',

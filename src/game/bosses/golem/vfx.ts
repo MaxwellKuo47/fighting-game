@@ -113,6 +113,34 @@ export function loadVfx() {
     },
   });
 
+  // 死亡演出：生命核心過載內爆 + 六巨樹幹向外傾倒 + 木屑爆散 + 枯葉雨 + 多重枯綠環
+  registerVfx('boss_golem_death', {
+    onDeath(ctx, f, c) {
+      const { THREE: T, addTransient, sceneMgr, particles } = ctx;
+      sceneMgr.addShake(24); sceneMgr.addFlash(0.42, LIFE);
+      // 生命核心：先過載膨脹再內爆熄滅
+      const core = new T.Mesh(new T.IcosahedronGeometry(26, 1), new T.MeshBasicMaterial({ color: new T.Color('#eaffd0'), transparent: true, opacity: 0.95, blending: T.AdditiveBlending, depthWrite: false }));
+      core.position.set(c.x, 34, c.z);
+      addTransient(core, 0.7, (m, t) => { if (t < 0.45) { m.scale.setScalar(1 + (t / 0.45) * 3.2); m.material.opacity = 0.95; } else { const k = (t - 0.45) / 0.55; m.scale.setScalar(4.2 * (1 - k * 0.95)); m.material.opacity = 0.95 * (1 - k); } });
+      // 多重枯綠擴張環
+      for (let k = 0; k < 3; k++) { const rg = addRing(k % 2 ? LIFE : LEAFB, 0.85); rg.position.set(c.x, 3 + k * 2, c.z); rg.scale.setScalar(20); addTransient(rg, 0.7 + k * 0.12, (m, t) => { m.scale.setScalar(20 + (220 + k * 70) * t); m.material.opacity = 0.85 * (1 - t); }); }
+      // 六根巨樹幹向外傾倒淡出
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * 6.283; const trunk = new T.Group();
+        const tr = new T.Mesh(new T.CylinderGeometry(6, 10, 90, 6), matBark()); tr.position.y = 45; trunk.add(tr);
+        const cap = new T.Mesh(new T.IcosahedronGeometry(20, 0), matLeaf(i % 2 ? LEAF : LEAFB)); cap.position.y = 92; trunk.add(cap);
+        trunk.traverse((o) => { if (o.material) o.material.transparent = true; });
+        addTransient(trunk, 0.95, (gg, t) => { gg.rotation.z = Math.cos(a) * 1.4 * t; gg.rotation.x = -Math.sin(a) * 1.4 * t; gg.position.set(c.x + Math.cos(a) * (20 + 70 * t), 0, c.z + Math.sin(a) * (20 + 70 * t)); gg.traverse((o) => { if (o.material) o.material.opacity = 1 - Math.max(0, (t - 0.4) / 0.6); }); });
+      }
+      // 木屑大爆散 + 揚塵柱 + 枯葉騰起
+      burst(ctx, c, { color: [BARK, BARKD, LEAF], count: 46, speed: 320, up: 90, flat: true, life: 0.9, size: 6 });
+      burst(ctx, c, { color: [LEAFB, LIFE, '#eaffd0'], count: 30, speed: 200, up: 150, life: 1.1, size: 5 });
+      column(ctx, c, { color: ['#5a4a32', BARK], count: 26, radius: 90, speed: 240, life: 0.9, size: 6.5 });
+      // 緩降枯葉雨
+      for (let i = 0; i < 40; i++) { const a = Math.random() * 6.283, rr = Math.random() * 180; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 150 + Math.random() * 80, z: c.z + Math.sin(a) * rr, vx: (Math.random() - 0.5) * 30, vy: -40 - Math.random() * 40, vz: (Math.random() - 0.5) * 30, gravity: 30, drag: 1.5, life: 1.2 + Math.random() * 0.6, size: 4 + Math.random() * 3, color: Math.random() < 0.5 ? LEAF : LEAFB, fade: true }); }
+    },
+  });
+
   // 森羅旋掃：六棵巨樹繞中心高速旋轉 + 多重翠綠衝擊環 + 中心生命光柱 + 落葉風暴
   registerVfx('boss_golem_ult', {
     zone(ctx, z) {

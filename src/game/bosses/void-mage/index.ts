@@ -10,6 +10,7 @@ const data = {
     id: 107, round: 8, name: '虛空大魔導', subtitle: '時空扭曲者',
     color: '#8e44ad', shape: 'circle', maxHp: 7500, maxMana: 999, speed: 150,
     baseHp: 7500,
+    deathVfx: 'boss_void_death',
     appearance: {
       size: '等身 (約玩家 1.8 倍)，漂浮',
       style: '漂浮的宇宙魔導，紫黑星空長袍內流動星雲，周身環繞旋轉符文環，雙手凝聚扭曲空間的紫光。配色：虛空紫 #8e44ad + 星雲靛 #3d2b8e + 符文金光。',

@@ -94,4 +94,33 @@ export function loadVfx() {
       ctx.sceneMgr.addShake(13); ctx.sceneMgr.addFlash(0.22, NEB);
     },
   });
+
+  // 死亡演出：奇點塌縮 → 虛空炸裂（兩階段）。先暗核成形、星塵向內吸入、符文環內塌；約 0.42s 後虛空總爆發
+  registerVfx('boss_void_death', {
+    onDeath(ctx, f, c) {
+      const { THREE: T, addTransient, sceneMgr, particles } = ctx;
+      sceneMgr.addShake(24); sceneMgr.addFlash(0.44, NEB);
+      // 階段一：暗核 + 星暈（成形後內爆）
+      const core = new T.Mesh(new T.SphereGeometry(8, 16, 12), new T.MeshBasicMaterial({ color: new T.Color(DARK), transparent: true, opacity: 0 })); core.position.set(c.x, 30, c.z);
+      addTransient(core, 1.3, (m, t) => { if (t < 0.4) { m.material.opacity = t / 0.4; m.scale.setScalar(1 + t * 2); } else { const k = (t - 0.4) / 0.6; m.material.opacity = 1 - k; m.scale.setScalar(3 * (1 + k * 2)); } });
+      const glow = new T.Mesh(new T.SphereGeometry(10, 16, 12), basicAdd(LILAC, 0)); glow.position.set(c.x, 30, c.z);
+      addTransient(glow, 1.3, (m, t) => { if (t < 0.4) { m.material.opacity = 0.5 * (t / 0.4); m.scale.setScalar(1 + t * 2.5); } else { const k = (t - 0.4) / 0.6; m.material.opacity = 0.6 * (1 - k); m.scale.setScalar(3.5 * (1 + k * 3)); } });
+      // 收縮符文環（向內塌）
+      for (let k = 0; k < 3; k++) { const rg = new T.Mesh(new T.RingGeometry(0.84, 1, k === 0 ? 6 : 48), basicAdd(k === 0 ? GOLD : (k % 2 ? LILAC : NEB), 0.8)); rg.rotation.x = -Math.PI / 2; rg.position.set(c.x, 3 + k * 2, c.z); addTransient(rg, 0.42, (m, t) => { m.scale.setScalar((300 - 80 * k) * (1 - 0.85 * t) + 12); m.rotation.z += 0.05 * (k + 1); m.material.opacity = 0.8 * (1 - t * 0.6); }); }
+      // 向內吸入的螺旋星塵
+      for (let i = 0; i < 46; i++) { const a = Math.random() * 6.283, rr = 120 + Math.random() * 140; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 6 + Math.random() * 50, z: c.z + Math.sin(a) * rr, vx: -Math.cos(a) * 260 - Math.sin(a) * 120, vy: -10, vz: -Math.sin(a) * 260 + Math.cos(a) * 120, gravity: 0, drag: 0.9, life: 0.45, size: 3 + Math.random() * 1.5, color: Math.random() < 0.5 ? LILAC : NEB, fade: true }); }
+      // 階段二：延遲觸發的虛空總爆發（用隱形計時器 Object3D）
+      const timer = new T.Object3D(); timer.position.set(c.x, 0, c.z); let fired = false;
+      addTransient(timer, 0.6, (m, t) => {
+        if (fired || t < 0.7) return; fired = true;
+        sceneMgr.addShake(20); sceneMgr.addFlash(0.4, GOLD);
+        sphereFlash(ctx, c, { color: '#ffffff', from: 14, to: 150, life: 0.4, alpha: 0.98 });
+        sphereFlash(ctx, c, { color: NEB, from: 8, to: 90, life: 0.32, alpha: 0.7 });
+        ring(ctx, c, { color: GOLD, from: 16, to: 340, life: 0.7, y: 4, alpha: 0.9, ease: true });
+        ring(ctx, c, { color: LILAC, from: 12, to: 260, life: 0.8, y: 3, alpha: 0.7, ease: true });
+        burst(ctx, c, { color: [VOID, LILAC, NEB, GOLD], count: 56, speed: 380, up: 100, life: 0.9, size: 5.5 });
+        for (let i = 0; i < 40; i++) { const a = Math.random() * 6.283, rr = Math.random() * 40; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 20, z: c.z + Math.sin(a) * rr, vx: Math.cos(a) * (260 + Math.random() * 220), vy: 60 + Math.random() * 160, vz: Math.sin(a) * (260 + Math.random() * 220), gravity: 40, drag: 0.8, life: 0.9 + Math.random() * 0.5, size: 3.5 + Math.random() * 2.5, color: Math.random() < 0.5 ? LILAC : GOLD, fade: true }); }
+      });
+    },
+  });
 }

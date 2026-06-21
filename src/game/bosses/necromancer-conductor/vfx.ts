@@ -99,4 +99,30 @@ export function loadVfx() {
       };
     },
   });
+
+  // 死亡演出：亡靈法陣崩解、群魂解放昇天 — 靈爆球閃、六角法陣擴張後收縮、升騰亡靈、靈魂噴泉與昇天粒子
+  registerVfx('boss_necro_death', {
+    onDeath(ctx, f, c) {
+      const { THREE: T, addTransient, sceneMgr, particles } = ctx;
+      sceneMgr.addShake(20); sceneMgr.addFlash(0.4, SOUL);
+      sphereFlash(ctx, c, { color: SOUL, from: 10, to: 110, life: 0.4, alpha: 0.9 });
+      sphereFlash(ctx, c, { color: PURPLE, from: 6, to: 70, life: 0.32, alpha: 0.6 });
+      ring(ctx, c, { color: SOUL, from: 16, to: 320, life: 0.7, y: 3, alpha: 0.85, ease: true });
+      ring(ctx, c, { color: LILAC, from: 12, to: 240, life: 0.8, y: 2, alpha: 0.65, ease: true });
+      // 亡靈法陣崩解：六角法陣先擴張閃光、再收縮淡出
+      const sigil = new T.Mesh(new T.RingGeometry(0.55, 1, 6, 1), basicAdd(SOUL, 0.85)); sigil.rotation.x = -Math.PI / 2; sigil.position.set(c.x, 2, c.z);
+      addTransient(sigil, 0.9, (m, t) => { const e = t < 0.4 ? t / 0.4 : 1, k = Math.max(0, (t - 0.4) / 0.6); m.scale.setScalar(60 + 150 * e - 120 * k); m.rotation.z += 0.06; m.material.opacity = 0.85 * (1 - k); });
+      const sigil2 = new T.Mesh(new T.RingGeometry(0.8, 1, 48), basicAdd(PURPLE, 0.6)); sigil2.rotation.x = -Math.PI / 2; sigil2.position.set(c.x, 2.4, c.z);
+      addTransient(sigil2, 1.0, (m, t) => { m.scale.setScalar(40 + 220 * Math.min(1, t / 0.5)); m.material.opacity = 0.6 * (1 - t); });
+      // 升騰亡靈（多縷綠紫靈火昇天淡出）
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * 6.283; const gh = new T.Mesh(new T.ConeGeometry(9, 30, 6), basicAdd(i % 2 ? SOUL : LILAC, 0.8)); gh.position.set(c.x + Math.cos(a) * 40, 0, c.z + Math.sin(a) * 40);
+        addTransient(gh, 1.1, (m, t) => { m.position.set(c.x + Math.cos(a) * (40 + 30 * t), 10 + 180 * t, c.z + Math.sin(a) * (40 + 30 * t)); m.scale.setScalar(1 + 0.6 * Math.sin(t * 6)); m.material.opacity = 0.8 * (1 - t); });
+      }
+      column(ctx, c, { color: [SOUL, LILAC], count: 32, radius: 80, speed: 300, life: 1.1, size: 5.5 });
+      burst(ctx, c, { color: [SOUL, PURPLE, LILAC], count: 42, speed: 300, up: 100, life: 0.85, size: 5 });
+      // 群魂昇天（大量綠紫粒子向上飄散）
+      for (let i = 0; i < 54; i++) { const a = Math.random() * 6.283, rr = Math.random() * 160; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 4, z: c.z + Math.sin(a) * rr, vx: (Math.random() - 0.5) * 30, vy: 80 + Math.random() * 150, vz: (Math.random() - 0.5) * 30, gravity: -18, drag: 0.6, life: 1.3 + Math.random() * 0.7, size: 3.5 + Math.random() * 2.5, color: Math.random() < 0.6 ? SOUL : LILAC, fade: true }); }
+    },
+  });
 }

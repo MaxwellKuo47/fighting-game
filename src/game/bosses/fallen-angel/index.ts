@@ -10,6 +10,7 @@ const data = {
     id: 108, round: 9, name: '審判之翼', subtitle: '墮落天使',
     color: '#f5d76e', shape: 'triangle', maxHp: 9000, maxMana: 999, speed: 160,
     baseHp: 9000,
+    deathVfx: 'boss_angel_death',
     appearance: {
       size: '巨大 (約玩家 2.6 倍)，雙翼展開更寬',
       style: '墮落的天使，一側純白羽翼、一側焦黑墮翼，黑化的光環與聖痕，手持聖墮交織的審判巨劍，自身延伸出發光的束縛鎖鏈。配色：聖金 #f5d76e + 墮黑 #2c2c34 + 神聖白光 / 暗影紫。',

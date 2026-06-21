@@ -82,4 +82,39 @@ export function loadVfx() {
       ctx.sceneMgr.addShake(22); ctx.sceneMgr.addFlash(0.36, LIGHT);
     },
   });
+
+  // 死亡演出：羽翼崩散・聖光昇華 — 光暗總爆、自天而降審判光柱、頭頂光環昇天、光羽碎裂飛散與飄落
+  registerVfx('boss_angel_death', {
+    onDeath(ctx, f, c) {
+      const { THREE: T, addTransient, sceneMgr, particles } = ctx;
+      sceneMgr.addShake(24); sceneMgr.addFlash(0.5, LIGHT);
+      sphereFlash(ctx, c, { color: '#ffffff', from: 12, to: 140, life: 0.42, alpha: 0.98 });
+      sphereFlash(ctx, c, { color: SHADOW, from: 8, to: 80, life: 0.3, alpha: 0.6 });
+      ring(ctx, c, { color: GOLD, from: 18, to: 340, life: 0.7, y: 4, alpha: 0.92, ease: true });
+      ring(ctx, c, { color: SHADOW, from: 12, to: 260, life: 0.8, y: 3, alpha: 0.7, ease: true });
+      ring(ctx, c, { color: WHITE, from: 8, to: 180, life: 0.5, y: 6, alpha: 0.8 });
+      // 自天而降的審判光柱（外暈＋金柱＋亮核）
+      const halo = addCol(LIGHT, 0, 90, 70, 320); halo.position.set(c.x, 160, c.z);
+      addTransient(halo, 1.0, (m, t) => { const e = Math.min(1, t / 0.18), fade = 1 - Math.max(0, (t - 0.5) / 0.5); m.material.opacity = Math.max(0, 0.4 * e * fade); m.scale.y = 0.4 + e; });
+      const beam = addCol(GOLD, 0, 50, 36, 320); beam.position.set(c.x, 160, c.z);
+      addTransient(beam, 0.95, (m, t) => { const e = Math.min(1, t / 0.16), fade = 1 - Math.max(0, (t - 0.45) / 0.5); m.material.opacity = Math.max(0, 0.6 * e * fade); m.scale.y = 0.4 + e; });
+      const beamCore = addCol('#ffffff', 0, 22, 16, 320); beamCore.position.set(c.x, 160, c.z);
+      addTransient(beamCore, 0.9, (m, t) => { const e = Math.min(1, t / 0.14), fade = 1 - Math.max(0, (t - 0.4) / 0.5); m.material.opacity = Math.max(0, 0.9 * e * fade); m.scale.y = 0.4 + e; });
+      // 頭頂光環擴張昇天
+      const halo2 = new T.Mesh(new T.TorusGeometry(40, 5, 8, 40), basicAdd(GOLD, 0.9)); halo2.rotation.x = -Math.PI / 2; halo2.position.set(c.x, 90, c.z);
+      addTransient(halo2, 1.1, (m, t) => { m.position.y = 90 + 120 * t; m.scale.setScalar(1 + t * 1.5); m.material.opacity = 0.9 * (1 - t); });
+      // 羽翼碎裂：光羽碎片拋物線飛散
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * 6.283 + Math.random() * 0.3;
+        const fr = new T.Mesh(new T.TetrahedronGeometry(8), new T.MeshStandardMaterial({ color: new T.Color(LIGHT), emissive: new T.Color(GOLD), emissiveIntensity: 1.4, metalness: 0.3, roughness: 0.2, transparent: true, opacity: 0.95 })); fr.position.set(c.x, c.y + 20, c.z);
+        const d = 150 + Math.random() * 120, up = 80 + Math.random() * 120;
+        addTransient(fr, 1.1, (m, t) => { m.position.set(c.x + Math.cos(a) * d * t, c.y + 20 + up * t - 140 * t * t, c.z + Math.sin(a) * d * t); m.rotation.x += 0.2; m.rotation.y += 0.24; m.material.opacity = 0.92 * (1 - t * t); });
+      }
+      column(ctx, c, { color: [WHITE, GOLD], count: 36, radius: 100, speed: 320, life: 1.1, size: 5.5 });
+      burst(ctx, c, { color: [GOLD, WHITE, LIGHT], count: 44, speed: 340, up: 110, life: 0.9, size: 5.5 });
+      burst(ctx, c, { color: [SHADOW, DARK], count: 24, speed: 240, up: 40, flat: true, life: 0.8, size: 5 });
+      // 飄落光羽
+      for (let i = 0; i < 44; i++) { const a = Math.random() * 6.283, rr = Math.random() * 180; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 160 + Math.random() * 80, z: c.z + Math.sin(a) * rr, vx: (Math.random() - 0.5) * 24, vy: -30 - Math.random() * 30, vz: (Math.random() - 0.5) * 24, gravity: 10, drag: 1.4, life: 1.4 + Math.random() * 0.7, size: 3.5 + Math.random() * 2.5, color: Math.random() < 0.6 ? LIGHT : GOLD, fade: true }); }
+    },
+  });
 }

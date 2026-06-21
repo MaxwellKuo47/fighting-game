@@ -9,6 +9,7 @@ const data = {
     id: 109, round: 10, name: '另一個自己', subtitle: '終焉之神',
     color: '#e8e8f0', shape: 'circle', maxHp: 12000, maxMana: 999, speed: 180,
     baseHp: 12000,
+    deathVfx: 'boss_doppel_death',
     appearance: {
       size: '巨大 (約玩家 3 倍)，會隨階段變形',
       style: '一具不斷流動、變形的「另一個自己」剪影，由虛空與星光構成的軀體，表面裂開流瀉白光，頭頂懸浮王者光環，外型會模仿並扭曲玩家的姿態。配色：虛空黑 + 星光白 #e8e8f0 + 裂縫白光 + 階段染色。',

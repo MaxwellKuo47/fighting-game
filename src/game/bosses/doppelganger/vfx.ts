@@ -84,4 +84,47 @@ export function loadVfx() {
       };
     },
   });
+
+  // 死亡演出：終焉之神三階段湮滅 — ① 鏡面碎裂 → ② 奇點塌縮 → ③ 終焉總爆發（星光湮滅）
+  registerVfx('boss_doppel_death', {
+    onDeath(ctx, f, c) {
+      const { THREE: T, addTransient, sceneMgr, particles } = ctx;
+      // ── 階段 0：鏡面碎裂（即時） ──
+      sceneMgr.addShake(20); sceneMgr.addFlash(0.4, WHITE);
+      sphereFlash(ctx, c, { color: WHITE, from: 10, to: 90, life: 0.3, alpha: 0.95 });
+      ring(ctx, c, { color: STAR, from: 10, to: 180, life: 0.45, y: 3, alpha: 0.8, ease: true });
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * 6.283; const sh = new T.Mesh(new T.TetrahedronGeometry(10), new T.MeshStandardMaterial({ color: new T.Color(STAR), emissive: new T.Color(AURA), emissiveIntensity: 1.5, metalness: 0.6, roughness: 0.15, transparent: true, opacity: 0.95 })); sh.position.set(c.x, c.y + 16, c.z);
+        const d = 120 + Math.random() * 100; addTransient(sh, 0.6, (m, t) => { m.position.set(c.x + Math.cos(a) * d * t, c.y + 16 + 40 * Math.sin(t * 3), c.z + Math.sin(a) * d * t); m.rotation.x += 0.3; m.rotation.y += 0.26; m.material.opacity = 0.92 * (1 - t); });
+      }
+      // ── 階段 1：奇點塌縮（~0.49s 後） ──
+      const t1 = new T.Object3D(); t1.position.set(c.x, 0, c.z); let f1 = false;
+      addTransient(t1, 0.7, (m, t) => {
+        if (f1 || t < 0.7) return; f1 = true; sceneMgr.addShake(14);
+        const core = new T.Mesh(new T.SphereGeometry(10, 16, 12), new T.MeshBasicMaterial({ color: new T.Color(VOID), transparent: true, opacity: 0 })); core.position.set(c.x, 34, c.z);
+        addTransient(core, 0.7, (mm, tt) => { mm.material.opacity = tt < 0.5 ? tt / 0.5 : 1 - (tt - 0.5) / 0.5; mm.scale.setScalar(1 + tt * 2.5); });
+        const cg = new T.Mesh(new T.SphereGeometry(14, 16, 12), basicAdd(AURA, 0)); cg.position.set(c.x, 34, c.z);
+        addTransient(cg, 0.7, (mm, tt) => { mm.material.opacity = (tt < 0.5 ? tt / 0.5 : 1 - (tt - 0.5) / 0.5) * 0.55; mm.scale.setScalar(1 + tt * 3); });
+        for (let k = 0; k < 3; k++) { const rg = new T.Mesh(new T.RingGeometry(0.84, 1, k === 0 ? 6 : 48), basicAdd(k % 2 ? AURA : STAR, 0.8)); rg.rotation.x = -Math.PI / 2; rg.position.set(c.x, 3 + k * 2, c.z); addTransient(rg, 0.5, (mm, tt) => { mm.scale.setScalar((320 - 70 * k) * (1 - 0.85 * tt) + 12); mm.rotation.z += 0.05 * (k + 1); mm.material.opacity = 0.8 * (1 - tt * 0.6); }); }
+        for (let i = 0; i < 50; i++) { const a = Math.random() * 6.283, rr = 130 + Math.random() * 150; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 6 + Math.random() * 60, z: c.z + Math.sin(a) * rr, vx: -Math.cos(a) * 300 - Math.sin(a) * 140, vy: -8, vz: -Math.sin(a) * 300 + Math.cos(a) * 140, gravity: 0, drag: 0.9, life: 0.5, size: 3 + Math.random() * 1.6, color: Math.random() < 0.5 ? STAR : AURA, fade: true }); }
+      });
+      // ── 階段 2：終焉總爆發（~1.1s 後） ──
+      const t2 = new T.Object3D(); t2.position.set(c.x, 0, c.z); let f2 = false;
+      addTransient(t2, 1.3, (m, t) => {
+        if (f2 || t < 0.85) return; f2 = true; sceneMgr.addShake(30); sceneMgr.addFlash(0.6, WHITE);
+        sphereFlash(ctx, c, { color: '#ffffff', from: 16, to: 200, life: 0.5, alpha: 1.0 });
+        sphereFlash(ctx, c, { color: AURA, from: 10, to: 120, life: 0.36, alpha: 0.75 });
+        ring(ctx, c, { color: STAR, from: 20, to: 420, life: 0.85, y: 4, alpha: 0.95, ease: true });
+        ring(ctx, c, { color: AURA, from: 14, to: 320, life: 0.95, y: 3, alpha: 0.75, ease: true });
+        ring(ctx, c, { color: WHITE, from: 10, to: 220, life: 0.6, y: 6, alpha: 0.85 });
+        const pil = new T.Mesh(new T.CylinderGeometry(40, 64, 400, 16, 1, true), basicAdd(AURA, 0)); pil.position.set(c.x, 200, c.z);
+        addTransient(pil, 1.0, (mm, tt) => { const e = Math.min(1, tt / 0.18), fade = 1 - Math.max(0, (tt - 0.5) / 0.5); mm.material.opacity = Math.max(0, 0.6 * e * fade); mm.scale.y = 0.4 + e; mm.rotation.y += 0.04; });
+        const pilC = new T.Mesh(new T.CylinderGeometry(16, 26, 400, 12, 1, true), basicAdd('#ffffff', 0)); pilC.position.set(c.x, 200, c.z);
+        addTransient(pilC, 0.95, (mm, tt) => { const e = Math.min(1, tt / 0.16), fade = 1 - Math.max(0, (tt - 0.45) / 0.5); mm.material.opacity = Math.max(0, 0.95 * e * fade); mm.scale.y = 0.4 + e; });
+        column(ctx, c, { color: [WHITE, AURA], count: 50, radius: 130, speed: 380, life: 1.2, size: 6 });
+        burst(ctx, c, { color: [STAR, AURA, WHITE], count: 60, speed: 420, up: 120, life: 1.0, size: 6 });
+        for (let i = 0; i < 60; i++) { const a = Math.random() * 6.283, rr = Math.random() * 220; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 4, z: c.z + Math.sin(a) * rr, vx: (Math.random() - 0.5) * 30, vy: 70 + Math.random() * 150, vz: (Math.random() - 0.5) * 30, gravity: -12, drag: 0.6, life: 1.5 + Math.random() * 0.8, size: 3 + Math.random() * 2.5, color: Math.random() < 0.5 ? STAR : AURA, fade: true }); }
+      });
+    },
+  });
 }

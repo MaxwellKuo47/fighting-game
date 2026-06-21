@@ -92,4 +92,31 @@ export function loadVfx() {
       };
     },
   });
+
+  // 死亡演出：重甲熔解崩塌 — 核心白熱炸開、焦土放射熔岩裂縫、數道熔岩噴發柱、餘燼雨與黑煙升騰
+  registerVfx('boss_juggernaut_death', {
+    onDeath(ctx, f, c) {
+      const { THREE: T, addTransient, sceneMgr, particles } = ctx;
+      sceneMgr.addShake(26); sceneMgr.addFlash(0.46, LAVA);
+      sphereFlash(ctx, c, { color: SPARK, from: 12, to: 120, life: 0.4, alpha: 0.95 });
+      sphereFlash(ctx, c, { color: LAVA, from: 8, to: 80, life: 0.32, alpha: 0.7 });
+      ring(ctx, c, { color: LAVA, from: 16, to: 330, life: 0.7, y: 3, alpha: 0.9, ease: true });
+      ring(ctx, c, { color: SPARK, from: 12, to: 240, life: 0.55, y: 4, alpha: 0.75 });
+      ring(ctx, c, { color: EMBER, from: 10, to: 180, life: 0.8, y: 2, alpha: 0.6, ease: true });
+      // 焦黑坑 + 放射熔岩裂縫
+      const g = new T.Group(); g.position.set(c.x, 0, c.z);
+      const scorch = new T.Mesh(new T.CircleGeometry(150, 32), new T.MeshBasicMaterial({ color: new T.Color(ASH), transparent: true, opacity: 0.7, side: T.DoubleSide, depthWrite: false }));
+      scorch.rotation.x = -Math.PI / 2; scorch.position.y = 0.6; g.add(scorch);
+      const cracks = [];
+      for (let i = 0; i < 10; i++) { const a = (i / 10) * 6.283; const cr = new T.Mesh(new T.PlaneGeometry(150, 12), new T.MeshBasicMaterial({ color: new T.Color(LAVA), transparent: true, opacity: 0.9, side: T.DoubleSide, depthWrite: false, blending: T.AdditiveBlending })); cr.rotation.x = -Math.PI / 2; cr.rotation.z = a; cr.position.set(Math.cos(a) * 75, 0.8, Math.sin(a) * 75); g.add(cr); cracks.push(cr); }
+      addTransient(g, 1.4, (gg, t) => { scorch.material.opacity = 0.7 * (1 - Math.max(0, (t - 0.5) / 0.5)); for (const cr of cracks) cr.material.opacity = Math.max(0, 0.9 * (1 - t) * (0.6 + 0.4 * Math.sin(t * 20 + cr.rotation.z))); });
+      // 數道熔岩噴發柱
+      for (let i = 0; i < 5; i++) { const a = (i / 5) * 6.283 + 0.4, rr = 50; const col = addCol(GLOW, 0, 18, 30, 220); col.position.set(c.x + Math.cos(a) * rr, 110, c.z + Math.sin(a) * rr); addTransient(col, 0.9, (m, t) => { const e = Math.min(1, t / 0.16); const fade = 1 - Math.max(0, (t - 0.4) / 0.5); m.material.opacity = Math.max(0, 0.6 * e * fade); m.scale.y = 0.4 + e; }); }
+      column(ctx, c, { color: [LAVA, SPARK], count: 34, radius: 80, speed: 340, life: 1.0, size: 6.5 });
+      burst(ctx, c, { color: [LAVA, EMBER, SPARK], count: 46, speed: 340, up: 110, flat: true, life: 0.9, size: 6 });
+      // 餘燼雨 + 黑煙升騰
+      for (let i = 0; i < 40; i++) { const a = Math.random() * 6.283, rr = Math.random() * 160; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 140 + Math.random() * 80, z: c.z + Math.sin(a) * rr, vx: 0, vy: -40 - Math.random() * 50, vz: 0, gravity: 40, drag: 1.2, life: 1.1, size: 3 + Math.random() * 3, color: Math.random() < 0.5 ? LAVA : SPARK, fade: true }); }
+      for (let i = 0; i < 24; i++) { const a = Math.random() * 6.283, rr = Math.random() * 100; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 10, z: c.z + Math.sin(a) * rr, vx: (Math.random() - 0.5) * 20, vy: 60 + Math.random() * 90, vz: (Math.random() - 0.5) * 20, gravity: -12, drag: 0.9, life: 1.3 + Math.random() * 0.6, size: 6 + Math.random() * 5, color: ASH, fade: true }); }
+    },
+  });
 }

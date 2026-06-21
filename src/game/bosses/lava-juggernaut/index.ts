@@ -9,6 +9,7 @@ const data = {
     id: 102, round: 3, name: '熔岩鐵衛', subtitle: '烈焰重裝兵',
     color: '#c0392b', shape: 'square', maxHp: 5500, maxMana: 999, speed: 140,
     baseHp: 5500,
+    deathVfx: 'boss_juggernaut_death',
     appearance: {
       size: '巨大 (約玩家 2.2 倍)，厚重',
       style: '黑鐵全身重甲，甲縫間透出熔岩裂縫的橘紅光，左手巨盾、右手熔岩大劍。配色：玄鐵黑 #2b2b30 + 熔岩橘 #ff5a1f + 餘燼紅。',

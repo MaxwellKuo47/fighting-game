@@ -3,7 +3,7 @@
 // 讀作「危險、別踩」，而不是「漂亮的光圈」。配上 hud.js 站入時的全螢幕警示。
 import * as THREE from 'three';
 import { registerVfx } from '../../render3d/vfx/registry.js';
-import { slashBlade, cone, burst, ring, sphereFlash } from '../../render3d/vfx/lib.js';
+import { slashBlade, cone, burst, ring, column, sphereFlash } from '../../render3d/vfx/lib.js';
 
 const TOX = '#7fff00', GREEN = '#9acd32', PURPLE = '#6a3d9a';
 
@@ -137,6 +137,36 @@ export function loadVfx() {
           }
         },
       };
+    },
+  });
+
+  // 死亡演出：軀體溶解成毒沼 + 巨型毒爆球閃 + 毒液噴泉 + 瘴氣升騰 + 多重毒環
+  registerVfx('boss_lizard_death', {
+    onDeath(ctx: any, f: any, c: any) {
+      const { THREE: T, addTransient, sceneMgr, particles } = ctx;
+      sceneMgr.addShake(22); sceneMgr.addFlash(0.4, TOX);
+      // 巨型毒爆雙層球閃
+      sphereFlash(ctx, c, { color: TOX, from: 10, to: 110, life: 0.4, alpha: 0.9 });
+      sphereFlash(ctx, c, { color: PURPLE, from: 6, to: 70, life: 0.32, alpha: 0.6 });
+      // 多重毒液擴張環
+      ring(ctx, c, { color: TOX, from: 16, to: 320, life: 0.7, y: 3, alpha: 0.85, ease: true });
+      ring(ctx, c, { color: GREEN, from: 12, to: 240, life: 0.8, y: 2, alpha: 0.7, ease: true });
+      ring(ctx, c, { color: PURPLE, from: 8, to: 160, life: 0.55, y: 4, alpha: 0.6 });
+      // 溶解的毒沼：暗綠圓盤擴張後緩退
+      const pool = new T.Mesh(new T.CircleGeometry(1, 40), new T.MeshBasicMaterial({ color: new T.Color('#20300e'), transparent: true, opacity: 0.82, side: T.DoubleSide, depthWrite: false }));
+      pool.rotation.x = -Math.PI / 2; pool.position.set(c.x, 1, c.z);
+      addTransient(pool, 1.6, (m: any, t: number) => { const e = Math.min(1, t / 0.35); m.scale.setScalar(40 + 180 * e); m.material.opacity = 0.82 * (1 - Math.max(0, (t - 0.6) / 0.4)); });
+      const poolIn = new T.Mesh(new T.CircleGeometry(1, 36), new T.MeshBasicMaterial({ color: new T.Color('#3a5a18'), transparent: true, opacity: 0.6, side: T.DoubleSide, depthWrite: false, blending: T.AdditiveBlending }));
+      poolIn.rotation.x = -Math.PI / 2; poolIn.position.set(c.x, 1.4, c.z);
+      addTransient(poolIn, 1.6, (m: any, t: number) => { const e = Math.min(1, t / 0.4); m.scale.setScalar(30 + 130 * e); m.rotation.z += 0.01; m.material.opacity = 0.55 * (1 - Math.max(0, (t - 0.6) / 0.4)); });
+      // 毒液噴泉 + 大爆散毒滴
+      column(ctx, c, { color: [TOX, GREEN], count: 30, radius: 80, speed: 300, life: 1.0, size: 6 });
+      burst(ctx, c, { color: [TOX, GREEN, PURPLE], count: 44, speed: 320, up: 100, flat: true, life: 0.9, size: 6 });
+      burst(ctx, c, { color: [TOX, '#e6ff8a'], count: 24, speed: 200, up: 160, life: 1.0, size: 5 });
+      // 瘴氣升騰（慢飄綠紫煙）
+      for (let i = 0; i < 36; i++) { const a = Math.random() * 6.283, rr = Math.random() * 160; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 2, z: c.z + Math.sin(a) * rr, vx: (Math.random() - 0.5) * 20, vy: 50 + Math.random() * 90, vz: (Math.random() - 0.5) * 20, gravity: -16, drag: 0.8, life: 1.2 + Math.random() * 0.8, size: 5 + Math.random() * 4, color: Math.random() < 0.6 ? TOX : PURPLE, fade: true }); }
+      // 酸蝕落滴
+      for (let i = 0; i < 24; i++) { const a = Math.random() * 6.283, rr = 30 + Math.random() * 120; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 120 + Math.random() * 60, z: c.z + Math.sin(a) * rr, vx: 0, vy: -60 - Math.random() * 40, vz: 0, gravity: 60, drag: 1.2, life: 0.9, size: 4 + Math.random() * 2, color: Math.random() < 0.5 ? GREEN : TOX, fade: true }); }
     },
   });
 }

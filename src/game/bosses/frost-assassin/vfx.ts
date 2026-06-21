@@ -85,4 +85,34 @@ export function loadVfx() {
       };
     },
   });
+
+  // 死亡演出：軀體冰封碎裂 — 凍結內縮、白爆球閃、冰晶碎片四散、冰柱炸起傾倒、厚落雪與貼地寒霧
+  registerVfx('boss_frost_death', {
+    onDeath(ctx, f, c) {
+      const { THREE: T, addTransient, sceneMgr, particles } = ctx;
+      sceneMgr.addShake(20); sceneMgr.addFlash(0.42, GLOW);
+      ring(ctx, c, { color: '#ffffff', from: 160, to: 16, life: 0.34, y: 4, alpha: 0.8 });
+      sphereFlash(ctx, c, { color: '#ffffff', from: 10, to: 120, life: 0.4, alpha: 0.95 });
+      sphereFlash(ctx, c, { color: DEEP, from: 6, to: 70, life: 0.3, alpha: 0.6 });
+      ring(ctx, c, { color: GLOW, from: 16, to: 320, life: 0.7, y: 3, alpha: 0.85, ease: true });
+      ring(ctx, c, { color: ICE, from: 12, to: 240, life: 0.8, y: 2, alpha: 0.65, ease: true });
+      // 軀體碎裂成大量冰晶碎片（拋物線飛散）
+      for (let i = 0; i < 20; i++) {
+        const a = (i / 20) * 6.283 + Math.random() * 0.3, sz = 7 + Math.random() * 8;
+        const shard = new T.Mesh(new T.TetrahedronGeometry(sz), shardMat()); shard.position.set(c.x, c.y + 10, c.z);
+        const d = 160 + Math.random() * 120, up = 60 + Math.random() * 120;
+        addTransient(shard, 1.0, (m, t) => { m.position.set(c.x + Math.cos(a) * d * t, c.y + 10 + up * t - 160 * t * t, c.z + Math.sin(a) * d * t); m.rotation.x += 0.3; m.rotation.y += 0.26; m.material.opacity = 0.92 * (1 - t * t); });
+      }
+      // 冰柱炸起後向外傾倒
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * 6.283; const spike = new T.Mesh(new T.ConeGeometry(10, 90, 5), shardMat()); spike.position.set(c.x + Math.cos(a) * 30, 0, c.z + Math.sin(a) * 30);
+        addTransient(spike, 0.9, (m, t) => { const e = Math.min(1, t / 0.2), fall = Math.max(0, (t - 0.4) / 0.6); m.scale.y = e; m.position.y = 45 * e; m.rotation.z = Math.cos(a) * 1.2 * fall; m.rotation.x = -Math.sin(a) * 1.2 * fall; m.material.opacity = 0.9 * (1 - fall); });
+      }
+      burst(ctx, c, { color: [ICE, FROST, GLOW], count: 44, speed: 320, up: 90, flat: true, life: 0.9, size: 5.5 });
+      // 厚落雪
+      for (let i = 0; i < 48; i++) { const a = Math.random() * 6.283, rr = Math.random() * 200; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 150 + Math.random() * 90, z: c.z + Math.sin(a) * rr, vx: (Math.random() - 0.5) * 16, vy: -50 - Math.random() * 40, vz: (Math.random() - 0.5) * 16, gravity: 0, drag: 0.5, life: 1.4 + Math.random() * 0.6, size: 3 + Math.random() * 2.5, color: Math.random() < 0.6 ? FROST : GLOW, fade: true }); }
+      // 貼地寒霧擴散
+      for (let i = 0; i < 20; i++) { const a = Math.random() * 6.283, rr = Math.random() * 60; particles.spawn({ x: c.x + Math.cos(a) * rr, y: 6, z: c.z + Math.sin(a) * rr, vx: Math.cos(a) * 120, vy: 8, vz: Math.sin(a) * 120, gravity: 0, drag: 1.6, life: 1.0, size: 7 + Math.random() * 5, color: FROST, fade: true }); }
+    },
+  });
 }

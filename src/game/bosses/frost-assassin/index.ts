@@ -9,6 +9,7 @@ const data = {
     id: 103, round: 4, name: '霜雪刺客', subtitle: '冰原幻影',
     color: '#74e0ff', shape: 'triangle', maxHp: 5000, maxMana: 999, speed: 220,
     baseHp: 5000,
+    deathVfx: 'boss_frost_death',
     appearance: {
       size: '等身 (約玩家 1.5 倍)，纖細靈巧',
       style: '半透明的淡藍冰晶刺客，身後拖曳霜霧殘影，雙手冰結匕首。配色：冰藍 #74e0ff + 霜白 #e0f8ff + 內透幽光。',

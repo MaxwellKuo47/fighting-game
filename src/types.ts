@@ -95,6 +95,7 @@ export interface CharacterMeta {
   sprite?: string;
   maxHp: number;
   maxMana: number;
+  speed?: number;    // 移速 (詳情面板顯示用)
   desc: string;
   role?: string;     // 定位標籤 (前排/輸出/支援...)
   synergy?: string;  // 組隊搭配提示
@@ -129,7 +130,7 @@ export interface GameController {
   startGame(): void;
   startBossGame(): void;
   devStartGame(charId?: number): void;
-  devStartBoss(charId?: number): void;
+  devStartBoss(charId?: number, round?: number): void;
   returnToLobby(): void;
   bossRetry(): void;
   bossQuit(): void;

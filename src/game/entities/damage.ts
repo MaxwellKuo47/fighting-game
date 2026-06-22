@@ -1,15 +1,32 @@
-// @ts-nocheck
 import { PLAYER_RADIUS, ULT_MAX, ULT_GAIN_DEAL, ULT_GAIN_TAKE } from '../constants.js';
 import { getCharacter } from '../characters.js';
 import { applyBossDamageModifiers } from '../bosses/damage.ts';
+import { getBoss } from '../bosses.js';
 import { angleDiff, missingHp } from './math.ts';
 import { addFx } from './fx.ts';
 import { applyHeal } from './heal.ts';
 import { applyEffect } from './effects.ts';
 import { recordDamage, recordKill, recordDeath } from './stats.ts';
 import { isAlly, isEnemy } from './team.ts';
+import { spawnDropFromMinion } from '../systems/items.ts';
+import type { GameState, Player, EntityId } from '../types';
 
-function warsongFor(state, attacker) {
+// ── 天賦（被動）系統導覽 ────────────────────────────────────────────
+// 天賦「資料」定義於各角色 characters/classes/<slug>/index.ts 的 talent:{id,...}。
+// 天賦「邏輯」基於效能與決定性，刻意內聯於 hot-path（非事件匯流排），分布於：
+//   • entities/damage.ts   傷害輸出/承受修正、命中副作用（多數天賦集中於此）
+//       - talentDamageMods(): deadeye / lethal / momentum / shadowstrike / suppress / summonbond
+//       - warsongFor(): warsong
+//       - dealDamage 尾段: arcane_flow / bloodlust / momentum / suppress / summonbond / retribution
+//       - spreadCurse(): plague（死亡傳染 weaken）
+//   • systems/playerState.ts  bloodlust(攻速) / lifebloom(持續回血) / iaido(計時累積)
+//   • systems/effects.ts      undeath(DoT 汲取回血，見 dotLifesteal)
+//   • actions/combat.ts       pyromancy(強化 burn，applyEffectFrom) / iaido(outMult 加成)
+//   • actions/casting.ts      iaido(居合就緒判定) / timeprism(施法後自我 haste)
+// 註：unbreakable / bulwark 目前僅有資料定義，未見對應減傷邏輯（疑為待補；本次純重構不更動行為）。
+// ──────────────────────────────────────────────────────────────────
+
+function warsongFor(state: GameState, attacker: Player): number {
   let best = 0;
   for (const bard of Object.values(state.players)) {
     if (!bard.alive) continue;
@@ -29,8 +46,8 @@ function warsongFor(state, attacker) {
   return best;
 }
 
-function spreadCurse(state, corpse) {
-  let hexer = null;
+function spreadCurse(state: GameState, corpse: Player) {
+  let hexer: Player | null = null;
   for (const other of Object.values(state.players)) {
     if (!other.alive) continue;
     const talent = getCharacter(other.charId).talent;
@@ -38,6 +55,7 @@ function spreadCurse(state, corpse) {
   }
   if (!hexer) return;
   const weaken = corpse.effects.weaken;
+  if (!weaken) return;
   const radius = (getCharacter(hexer.charId).talent.radius) || 200;
   for (const other of Object.values(state.players)) {
     if (other.id === corpse.id || !isEnemy(state, hexer.id, other)) continue;
@@ -46,7 +64,7 @@ function spreadCurse(state, corpse) {
   addFx(state, { type: 'buff', x: corpse.x, y: corpse.y, color: '#bb6bd9', life: 0.4, radius, vfx: 'hexer_field' });
 }
 
-function talentDamageMods(state, attacker, target, amount) {
+function talentDamageMods(state: GameState, attacker: Player, target: Player, amount: number): number {
   let dmg = amount;
   if (target && target.alive) {
     const dt = getCharacter(target.charId).talent;
@@ -84,13 +102,21 @@ function talentDamageMods(state, attacker, target, amount) {
   return dmg;
 }
 
-export function dealDamage(state, target, amount, attackerId, opts = {}) {
+export function dealDamage(
+  state: GameState,
+  target: Player,
+  amount: number,
+  attackerId: EntityId,
+  opts: { noTalent?: boolean; noReflect?: boolean; meleeHit?: boolean } = {},
+) {
   if (!target.alive || amount <= 0) return;
   if (target.effects && target.effects.evading) return;
   // 闖關登場動畫期間：全場無敵
   if (state.mode === 'boss' && state.roundPhase !== 'fighting') return;
   // 階段轉換 i-frame：Boss 短暫無敵
   if (target.isBoss && (target.phaseIframe || 0) > 0) return;
+  // Boss 限界突破鎖血期間無敵
+  if (target.isBoss && target.ultLockInvincible) return;
 
   const attacker = state.players[attackerId];
   const hostile = attacker && attacker.id !== target.id && attacker.alive;
@@ -107,9 +133,11 @@ export function dealDamage(state, target, amount, attackerId, opts = {}) {
     if (owner && !owner.isBoss) dmg *= 0.55;
   }
   if (!opts.noTalent && hostile) dmg = talentDamageMods(state, attacker, target, dmg);
-  // Boss 階段傷害倍率 (含部位攻擊歸屬 Boss 本體時)
-  if (hostile && attacker && (attacker.isBoss || (attacker.isPart && attacker.ownerId)) && (attacker.phaseDmgMult || (state.players[attacker.ownerId] && state.players[attacker.ownerId].phaseDmgMult))) {
-    const mult = attacker.isBoss ? (attacker.phaseDmgMult || 1) : (state.players[attacker.ownerId].phaseDmgMult || 1);
+  // Boss 階段傷害倍率 (含部位攻擊歸屬 Boss 本體時)。
+  // ownerId 可能為 null，先安全取出 phaseOwner（行為等價於原本的內聯 state.players[ownerId]）。
+  const phaseOwner = attacker && attacker.ownerId != null ? state.players[attacker.ownerId] : null;
+  if (hostile && attacker && (attacker.isBoss || (attacker.isPart && attacker.ownerId)) && (attacker.phaseDmgMult || (phaseOwner && phaseOwner.phaseDmgMult))) {
+    const mult = attacker.isBoss ? (attacker.phaseDmgMult || 1) : (phaseOwner?.phaseDmgMult || 1);
     dmg *= mult;
   }
   if (hostile && attacker.effects && attacker.effects.dmg_reduce) dmg *= 1 - (attacker.effects.dmg_reduce.factor || 0);
@@ -154,6 +182,92 @@ export function dealDamage(state, target, amount, attackerId, opts = {}) {
   }
   if (dmg <= 0) return;
   target.ult = Math.min(ULT_MAX, (target.ult || 0) + dmg * ULT_GAIN_TAKE);
+
+  // 20% Health-lock forced ultimate cast mechanism for bosses
+  if (target.isBoss && !target.ultLockTriggered) {
+    const threshold = target.maxHp * 0.2;
+    if (target.hp - dmg <= threshold) {
+      dmg = Math.max(0, target.hp - threshold);
+      target.ultLockTriggered = true;
+      target.ultLockInvincible = true;
+      target.isCastingLockHpUlt = true;
+
+      // Cleanse all status effects/debuffs
+      applyEffect(target, 'cleanse');
+
+      // Clear charge state if any
+      target.chargeState = null;
+
+      // Setup the forced ultimate cast in the AI
+      const character = getCharacter(target.charId);
+      const action = character.ultimate;
+      if (action) {
+        // Clear CD of ultimate
+        target.cd.ultimate = 0;
+
+        // Force the AI state
+        const s = target.aiState || (target.aiState = {});
+        s.mode = 'windup';
+        s.slot = 'ultimate';
+
+        const rawWindup = action.windup != null ? action.windup : 0.5;
+        s.windupT = Math.max(1.0, rawWindup);
+        s.totalWindupT = s.windupT;
+        s.chainQueue = null;
+        s.precalculatedZones = null;
+        s.preselectedSoulBindPairs = null;
+        s.stolenUltimate = null;
+        s.safeLeft = null;
+
+        // Aim at the nearest player/enemy
+        const enemies = [];
+        for (const o of Object.values(state.players) as any[]) {
+          if (o.alive && isEnemy(state, target.id, o)) enemies.push(o);
+        }
+        if (enemies.length > 0) {
+          let closest = null, bd = Infinity;
+          for (const o of enemies) {
+            const d = Math.hypot(o.x - target.x, o.y - target.y);
+            if (d < bd) { bd = d; closest = o; }
+          }
+          if (closest) {
+            s.aimAng = Math.atan2(closest.y - target.y, closest.x - target.x);
+            s.lastTargetX = closest.x;
+            s.lastTargetY = closest.y;
+          } else {
+            s.aimAng = target.facing;
+          }
+        } else {
+          s.aimAng = target.facing;
+        }
+      }
+
+      // Show screen banner and ultimate visual effect
+      state.banner = {
+        text: '奧義·限界突破',
+        sub: `${target.name} 進入無敵狀態，釋放終極大招！`,
+        life: 2.0,
+        kind: 'phase',
+        color: '#ff3333'
+      };
+
+      addFx(state, {
+        type: 'ultimate',
+        x: target.x, y: target.y, facing: target.facing,
+        color: '#ff3333',
+        life: 1.2, radius: 400,
+        isBoss: true
+      });
+      addFx(state, {
+        type: 'ultimate',
+        x: target.x, y: target.y, facing: target.facing,
+        color: '#ffffff',
+        life: 0.8, radius: 250,
+        isBoss: true
+      });
+    }
+  }
+
   target.hp -= dmg;
 
   const isCrit = dmg >= amount * 1.35 || dmg >= 30;
@@ -217,13 +331,25 @@ export function dealDamage(state, target, amount, attackerId, opts = {}) {
     recordKill(state, attackerId, target);
     recordDeath(state, target);
     if (target.effects && target.effects.weaken) spreadCurse(state, target);
-    addFx(state, { type: 'death', x: target.x, y: target.y, color: '#ffffff', life: 0.5, radius: PLAYER_RADIUS * 2 });
-    // 闖關 Boss 擊破：全場慢動作 + 巨型爆閃 + 「BOSS DOWN」橫幅
-    if (target.isBoss && state.mode === 'boss') {
+    const bossDown = target.isBoss && state.mode === 'boss';
+    const bossDeathVfx = bossDown ? getBoss(target.charId)?.data?.deathVfx : null;
+    // 一般死亡通用爆；Boss 有專屬死亡演出時改走下方 death+vfx，不重複（避免雙重死亡音效）
+    if (!bossDeathVfx) {
+      addFx(state, { type: 'death', x: target.x, y: target.y, color: '#ffffff', life: 0.5, radius: PLAYER_RADIUS * 2 });
+    }
+    if (state.mode === 'boss' && (target.isMinion || target.isSummon)) {
+      spawnDropFromMinion(state, target.x, target.y);
+    }
+    // 闖關 Boss 擊破：全場慢動作 + 「BOSS DOWN」橫幅 + 專屬死亡演出（缺 deathVfx 時退回通用巨爆）
+    if (bossDown) {
       state.timeFreeze = { scale: 0.3, remaining: 0.8 };
       state.banner = { text: 'BOSS DOWN', sub: target.name || '', life: 1.0, kind: 'phase', color: '#ffd166' };
-      addFx(state, { type: 'ultimate', x: target.x, y: target.y, facing: target.facing, color: '#ffd166', life: 1.0, radius: 320 });
-      addFx(state, { type: 'ultimate', x: target.x, y: target.y, facing: target.facing, color: '#ffffff', life: 0.6, radius: 180 });
+      if (bossDeathVfx) {
+        addFx(state, { type: 'death', x: target.x, y: target.y, facing: target.facing, color: target.color || '#ffd166', life: 1.4, radius: 360, vfx: bossDeathVfx });
+      } else {
+        addFx(state, { type: 'ultimate', x: target.x, y: target.y, facing: target.facing, color: '#ffd166', life: 1.0, radius: 320 });
+        addFx(state, { type: 'ultimate', x: target.x, y: target.y, facing: target.facing, color: '#ffffff', life: 0.6, radius: 180 });
+      }
     }
   }
 }

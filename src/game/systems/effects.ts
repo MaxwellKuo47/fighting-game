@@ -1,12 +1,12 @@
-// @ts-nocheck
 import { PLAYER_RADIUS } from '../constants.js';
 import { getCharacter } from '../characters.js';
 import { dealDamage } from '../entities/damage.ts';
 import { applyEffect } from '../entities/effects.ts';
 import { applyHeal } from '../entities/heal.ts';
 import { addFx } from '../entities/fx.ts';
+import type { GameState, Player, EntityId } from '../types';
 
-function dotLifesteal(state, srcId, dmg) {
+function dotLifesteal(state: GameState, srcId: EntityId | null | undefined, dmg: number) {
   if (srcId == null || !dmg) return;
   const src = state.players[srcId];
   if (!src || !src.alive) return;
@@ -14,9 +14,9 @@ function dotLifesteal(state, srcId, dmg) {
   if (talent && talent.id === 'undeath') applyHeal(state, src, dmg * (talent.factor || 0.15));
 }
 
-export function tickStatusEffects(state, p, dt) {
+export function tickStatusEffects(state: GameState, p: Player, dt: number) {
   for (const kind of Object.keys(p.effects)) {
-    const effect = p.effects[kind];
+    const effect = p.effects[kind]!;
     effect.remaining -= dt;
 
     if (kind === 'burn') {
@@ -43,6 +43,12 @@ export function tickStatusEffects(state, p, dt) {
         applyEffect(p, 'frozen', { duration: effect.freezeDur });
         effect.remaining = 0;
         addFx(state, { type: 'hit', x: p.x, y: p.y, color: '#9fe8ff', life: 0.4, radius: PLAYER_RADIUS * 2.5, vfx: 'mage_iceshard' });
+      }
+    } else if (kind === 'regen_hot') {
+      effect.tickTimer -= dt;
+      if (effect.tickTimer <= 0) {
+        effect.tickTimer += 1.0;
+        applyHeal(state, p, effect.amountPerSec, { burst: true });
       }
     }
 

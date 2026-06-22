@@ -1,13 +1,14 @@
 import { BaseBoss } from '../BaseBoss.ts';
 import { BURN, STUN, SLOW, ROOT, CHILL } from '../effects.js';
 import { aiProfile } from './ai.ts';
-import { modelConfig } from './model.ts';
+import { modelConfig, buildModel, buildWeapon } from './model.ts';
 import { loadVfx } from './vfx.ts';
 
 const data = {
     id: 101, round: 2, name: '劇毒飛蜥', subtitle: '沼澤潛伏者',
     color: '#7fbf3f', shape: 'triangle', maxHp: 4500, maxMana: 999, speed: 175,
     baseHp: 4500,
+    deathVfx: 'boss_lizard_death',
     appearance: {
       size: '等身偏大 (約玩家 1.8 倍)，低伏敏捷',
       style: '四足毒蜥，紫綠交雜的鱗甲、背脊滴落綠色毒液、口器外露毒牙。配色：毒綠 #7fbf3f + 暗紫 #6a3d9a + 螢光毒滴。',
@@ -52,4 +53,4 @@ const data = {
     ultimate: { name: '瘴氣風暴', type: 'zone', range: 140, radius: 120, dmg: 30, lifetime: 5, tick: 0.5, delay: 0.8, count: 6, scatter: 260, stagger: 0.16, effect: BURN(14, 3), cd: 16, windup: 1.0, telegraph: 'circle', color: '#6abf2f', vfx: 'boss_lizard_ult' },
   };
 
-export default new BaseBoss(data, { aiProfile, modelConfig, loadVfx });
+export default new BaseBoss(data, { aiProfile, modelConfig, buildModel, buildWeapon, loadVfx });

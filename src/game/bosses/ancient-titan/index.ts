@@ -1,12 +1,14 @@
 import { BaseBoss } from '../BaseBoss.ts';
 import { BURN, STUN, SLOW, ROOT, CHILL } from '../effects.js';
 import { aiProfile } from './ai.ts';
-import { modelConfig } from './model.ts';
+import { modelConfig, buildModel } from './model.ts';
+import { loadVfx } from './vfx.ts';
 
 const data = {
     id: 104, round: 5, name: '廢墟古代巨兵', subtitle: '機關核心',
     color: '#95a5a6', shape: 'square', maxHp: 6000, maxMana: 999, speed: 90,
     baseHp: 6000,
+    deathVfx: 'boss_titan_death',
     appearance: {
       size: '極巨大 (約玩家 3 倍，全場最大)',
       style: '石與金屬構成的遠古守護巨像，覆滿苔蘚與廢墟碎石，胸口符文核心發藍光。左臂為藍光雷射砲、右臂為火星四濺的旋轉巨鋸。配色：石灰 #95a5a6 + 金屬銅 #b08d57 + 符文藍 #49d0ff。',
@@ -58,8 +60,8 @@ const data = {
 
     basic: { name: '踏地震波', type: 'zone', range: 0, radius: 160, dmg: 36, lifetime: 0.4, tick: 0.4, knockback: 220, cd: 2.0, windup: 0.7, telegraph: 'circle', color: '#b0a99f', effect: STUN(0.4), vfx: 'boss_titan_stomp' },
     skill1: { name: '殲滅雷射', type: 'zone', range: 110, radius: 90, dmg: 50, lifetime: 1.6, tick: 0.3, delay: 1.0, moving: 200, requiresPart: 'arm_left', cd: 7, windup: 1.0, telegraph: 'line', color: '#49d0ff', vfx: 'boss_titan_laser' },
-    skill2: { name: '旋轉巨鋸', type: 'zone', range: 100, radius: 150, dmg: 30, lifetime: 2.2, tick: 0.25, moving: 280, requiresPart: 'arm_right', cd: 8, windup: 0.8, telegraph: 'arc', color: '#ff7043', effect: BURN(6, 2), vfx: 'boss_titan_saw' },
+    skill2: { name: '旋轉巨鋸', type: 'zone', range: 100, radius: 150, dmg: 30, lifetime: 2.2, tick: 0.25, moving: 280, requiresPart: 'arm_right', cd: 8, windup: 0.8, telegraph: 'line', color: '#ff7043', effect: BURN(6, 2), vfx: 'boss_titan_saw' },
     ultimate: { name: '核心過載', type: 'zone', range: 0, radius: 260, dmg: 70, lifetime: 0.6, tick: 0.6, delay: 1.2, knockback: 300, effect: STUN(0.6), requiresPartsDown: true, cd: 18, windup: 1.2, telegraph: 'circle', color: '#9fe8ff', vfx: 'boss_titan_ult' },
   };
 
-export default new BaseBoss(data, { aiProfile, modelConfig });
+export default new BaseBoss(data, { aiProfile, modelConfig, buildModel, loadVfx });

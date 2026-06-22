@@ -4,6 +4,22 @@
 // 重要：渲染器（three.js）延後到 React 把 canvas 掛上後（attachCanvas）才建立。
 // 邏輯/網路維持 setInterval(30Hz) 驅動，渲染用 requestAnimationFrame，
 // 並保留「rAF 超過 60ms 未跑就後備 draw()」的機制（勿用 document.hidden 包住渲染）。
+//
+// ── 架構 ───────────────────────────────────────────────────────────
+// 單例（getController）。內部以閉包變數持有可變狀態（role/gameState/inputs/view…）：
+// 刻意不拆成多檔，因狀態高度互相纏繞、且只有一個實例；分區以下列段落註解標示。
+//   事件匯流排 / 大廳 / 連線回呼(host+joiner) / 開始遊戲 / 遊戲迴圈 / 預測插值 / 結算 / 開發者模式
+//
+// host-authoritative P2P 星狀拓撲。線路訊息以 `t` 判別（型別見 game/types/network.ts）：
+//   hello   加入者→房主：自我介紹(name/charId/team)
+//   select  大廳：選角/隊伍/操作方式
+//   lobby   房主→全體：大廳名單
+//   start   房主→全體：開始(初始 state + lobby)
+//   input   加入者→房主：每幀輸入
+//   state   房主→全體：權威狀態快照(供 joiner 插值/預測)
+//   gameover/tolobby/full  結算 / 返回大廳 / 房間已滿
+// 房主跑 step() 權威模擬並廣播 snapshot；加入者送 input、收 snapshot 做插值，自身用 applyMovement 預測。
+// ──────────────────────────────────────────────────────────────────
 
 import { createRenderer } from './renderer.js';
 import { createNetwork, makeRoomCode } from './network.js';
@@ -11,7 +27,7 @@ import { createInput, EMPTY_INPUT } from './input.js';
 import { createInitialState } from './entities.js';
 import { CHARACTERS } from './characters.js';
 import { startBossRound, retryBossRound, quitBossRun } from './bossMode.js';
-import { step, applyMovement } from './simulation.js';
+import { step, applyMovement } from './simulation.ts';
 import { DT, SNAPSHOT_INTERVAL, INPUT_INTERVAL, MAX_PLAYERS } from './constants.js';
 import type {
   ControllerEvents,
@@ -155,12 +171,12 @@ function createController(): GameController {
   }
 
   // ---------- 開始闖關模式 (全員 team 1 協同打 BOSS；固定 R1 起) ----------
-  function startBossGame() {
+  function startBossGame(round = 1) {
     if (role !== 'host') return;
     const arr = lobby.map((p) => ({ id: p.id, name: p.name, charId: p.charId, team: 1 }));
     gameState = createInitialState(arr, gameFlags, { mode: 'boss' });
     for (const id of Object.keys(gameState.players)) inputs[id] = { ...EMPTY_INPUT };
-    startBossRound(gameState, 1);
+    startBossRound(gameState, round);
     net.broadcast({ t: 'start', state: gameState, lobby });
     beginLoop();
   }
@@ -177,7 +193,7 @@ function createController(): GameController {
   }
 
   function emptyView() {
-    return { players: {}, projectiles: [], zones: [], fx: [], destructibles: [], phase: 'playing', winner: null, time: 0 };
+    return { players: {}, projectiles: [], zones: [], fx: [], destructibles: [], items: [], phase: 'playing', winner: null, time: 0 };
   }
 
   // ---------- 房主：精簡快照 (只送加入者「渲染/HUD」需要的欄位) ----------
@@ -328,7 +344,7 @@ function createController(): GameController {
     const me = snap.players[selfId as string];
     if (me && me.alive) {
       const tmp = { charId: localSelf.charId, x: localSelf.x, y: localSelf.y, vx: 0, vy: 0, kvx: localSelf.kvx, kvy: localSelf.kvy, facing: localSelf.facing, effects: me.effects };
-      applyMovement(tmp, inp, dt);
+      applyMovement(tmp as any, inp, dt);
       localSelf.x = tmp.x; localSelf.y = tmp.y; localSelf.facing = tmp.facing;
       localSelf.kvx = tmp.kvx; localSelf.kvy = tmp.kvy;
     } else if (me) {
@@ -366,6 +382,7 @@ function createController(): GameController {
     // 投射物/區域/特效/可破壞物：生命短、移動快,取最新即可 (插值意義不大)
     view.projectiles = latest.projectiles; view.zones = latest.zones;
     view.fx = latest.fx; view.destructibles = latest.destructibles || [];
+    view.items = latest.items || [];
 
     const rt = performance.now() / 1000 - INTERP_DELAY;
     const pair = findBracket(rt);
@@ -581,7 +598,7 @@ function createController(): GameController {
   }
 
   // ---------- 開發者：直接進入闖關模式 (?dev=true&boss=true) ----------
-  function devStartBoss(charId?: number) {
+  function devStartBoss(charId?: number, round = 1) {
     myName = 'Dev Player';
     role = 'host';
     selfId = 'dev-' + Math.random().toString(36).slice(2, 9);
@@ -591,7 +608,7 @@ function createController(): GameController {
     lobby = [{ id: selfId, name: myName, charId: me, controlScheme: selectedControlScheme, isHost: true, team: 1 }];
     for (let i = 1; i <= 2; i++) lobby.push({ id: 'dev-' + i, name: '隊友 ' + i, charId: all[Math.floor(Math.random() * all.length)], controlScheme: 'wasd-jkl', isHost: false, team: 1 });
     selectedChar = me; selectedTeam = 1;
-    startBossGame();
+    startBossGame(round);
   }
 
   function bossRetry() {
@@ -626,6 +643,7 @@ function createController(): GameController {
       isHost: () => role === 'host',
       onBossRetry: bossRetry,
       onBossQuit: bossQuit,
+      input,
     });
     maybeStartLoop();
   }
@@ -633,6 +651,7 @@ function createController(): GameController {
   function detachCanvas() {
     stopLoop();
     input.disable();
+    renderer?.dispose?.();
     renderer = null;
     canvasEl = null;
   }

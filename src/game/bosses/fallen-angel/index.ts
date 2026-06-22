@@ -1,14 +1,30 @@
 import { BaseBoss } from '../BaseBoss.ts';
 import { BURN, STUN, SLOW, ROOT, CHILL } from '../effects.js';
 import { aiProfile } from './ai.ts';
-import { modelConfig } from './model.ts';
+import { modelConfig, buildModel, buildWeapon } from './model.ts';
+import { loadVfx } from './vfx.ts';
 import './action.ts';
-import { tetherAllPairs } from '../phaseHooks.ts';
+import { addFx } from '../../entities/fx.ts';
+import { teamPlayers } from '../lifecycle.ts';
+
+const tetherAllPairs = (opts: any = {}) => (state: any, boss: any) => {
+  if (!state.tethers) state.tethers = [];
+  const humans = teamPlayers(state).filter((p: any) => p.alive);
+  for (let i = 0; i + 1 < humans.length; i += 2) {
+    state.tethers.push({
+      a: humans[i].id, b: humans[i + 1].id,
+      minGap: opts.minGap || 220, dmg: opts.dmg || 18, tick: 0.5, tickTimer: 0.5,
+      remaining: opts.duration || 12,
+    });
+  }
+  addFx(state, { type: 'ultimate', x: boss.x, y: boss.y, facing: boss.facing, color: '#f5d76e', life: 0.7, radius: 220 });
+};
 
 const data = {
     id: 108, round: 9, name: '審判之翼', subtitle: '墮落天使',
     color: '#f5d76e', shape: 'triangle', maxHp: 9000, maxMana: 999, speed: 160,
     baseHp: 9000,
+    deathVfx: 'boss_angel_death',
     appearance: {
       size: '巨大 (約玩家 2.6 倍)，雙翼展開更寬',
       style: '墮落的天使，一側純白羽翼、一側焦黑墮翼，黑化的光環與聖痕，手持聖墮交織的審判巨劍，自身延伸出發光的束縛鎖鏈。配色：聖金 #f5d76e + 墮黑 #2c2c34 + 神聖白光 / 暗影紫。',
@@ -58,4 +74,4 @@ const data = {
     ultimate: { name: '光暗審判', type: 'light_dark', dmg: 80, radius: 1200, cd: 19, windup: 1.4, telegraph: 'self', color: '#ffe9a8', vfx: 'boss_angel_ult' },
   };
 
-export default new BaseBoss(data, { aiProfile, modelConfig });
+export default new BaseBoss(data, { aiProfile, modelConfig, buildModel, buildWeapon, loadVfx });

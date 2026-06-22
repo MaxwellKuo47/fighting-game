@@ -35,7 +35,7 @@ export function tickCooldowns(state: GameState, p: Player, talent: any, dt: numb
     }
     p.cd[slot] = Math.max(0, p.cd[slot] - dt * rate);
   }
-  if (state.flags && state.flags.noCooldown) {
+  if (state.flags && state.flags.noCooldown && !p.isBoss) {
     for (const slot of COOLDOWN_SLOTS) p.cd[slot] = 0;
   }
 }
@@ -58,7 +58,7 @@ export function tickPassiveRecovery(state: GameState, p: Player, talent: any, dt
 
   p.mana = Math.min(p.maxMana, p.mana + MANA_REGEN * dt);
   p.ult = Math.min(ULT_MAX, (p.ult || 0) + ULT_REGEN * dt);
-  if (state.flags && state.flags.freeMana) {
+  if (state.flags && state.flags.freeMana && !p.isBoss) {
     p.mana = p.maxMana;
     p.ult = ULT_MAX;
   }

@@ -678,18 +678,13 @@ function createController(): GameController {
   }
 
   // ---------- 視角模式：V 循環（0 遠景 → 1 近景三人稱 → 2 第一人稱）、滑鼠鎖定控視角、準心 ----------
-  const VIEW_HINTS = [
-    '',
-    '近景第三人稱 · 點畫面鎖定滑鼠 · 滑鼠轉視角 · 左鍵普攻 · 1234 招式 · Esc 解鎖 · V 切換',
-    '第一人稱 · 點畫面鎖定滑鼠 · 滑鼠轉視角 · 左鍵普攻 · 1234 招式 · Esc 解鎖 · V 切換',
-  ];
   function ensureCrosshair() {
     if (crosshairEl || !canvasEl) return;
     const host = canvasEl.parentElement || document.body;
     const el = document.createElement('div');
     el.className = 'chase-crosshair';
     el.style.display = 'none';
-    el.innerHTML = '<div class="chase-cross-dot"></div><div class="chase-cross-hint"></div>';
+    el.innerHTML = '<div class="chase-cross-dot"></div>';
     host.appendChild(el);
     crosshairEl = el;
   }
@@ -709,11 +704,7 @@ function createController(): GameController {
       // 由遠景進入時以自身朝向初始化視角；近景預設稍俯視、第一人稱平視（模式間切換則保留視角）
       if (wasNormal) input.setLook(selfFacing(), mode === 1 ? -0.35 : 0);
       input.setViewMode(mode);
-      if (crosshairEl) {
-        const hint = crosshairEl.querySelector('.chase-cross-hint');
-        if (hint) hint.textContent = VIEW_HINTS[mode];
-        crosshairEl.style.display = 'flex';
-      }
+      if (crosshairEl) crosshairEl.style.display = 'flex';
       if (!document.pointerLockElement) canvasEl?.requestPointerLock?.();
     } else {
       input.setViewMode(0);

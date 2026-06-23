@@ -316,8 +316,11 @@ function createController(): GameController {
     if (!renderer) return;
     lastRender = performance.now();
     const view = input.getView ? input.getView() : null;
-    if (role === 'host') { if (gameState) renderer.render(gameState, selfId, view); }
-    else { const v = buildView(); if (v) renderer.render(v, selfId, view); } // 每幀重建插值視圖
+    let rendered: any = null;
+    if (role === 'host') { rendered = gameState; if (rendered) renderer.render(rendered, selfId, view); }
+    else { rendered = buildView(); if (rendered) renderer.render(rendered, selfId, view); } // 每幀重建插值視圖
+    // 全滅「重來/離開」面板出現時自動解除滑鼠鎖定，讓玩家點得到按鈕（否則游標被鎖住看不見）
+    if (rendered && rendered.roundPhase === 'wiped' && document.pointerLockElement) document.exitPointerLock();
   }
 
   // ---------- 渲染迴圈 ----------
@@ -725,9 +728,9 @@ function createController(): GameController {
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyV' && running && !e.repeat) { e.preventDefault(); applyViewMode(viewMode + 1); }
     });
-    // 視角模式下若滑鼠未鎖定，點畫面重新鎖定（此擊不計為攻擊；input 僅在鎖定時才接受左鍵普攻）
-    window.addEventListener('mousedown', () => {
-      if (viewMode !== 0 && running && !document.pointerLockElement) canvasEl?.requestPointerLock?.();
+    // 視角模式下若滑鼠未鎖定，點「畫布」重新鎖定（限定 canvas，避免點選單/按鈕時誤搶游標）
+    window.addEventListener('mousedown', (e) => {
+      if (viewMode !== 0 && running && !document.pointerLockElement && e.target === canvasEl) canvasEl?.requestPointerLock?.();
     });
     // 鎖定被解除（Esc/切窗）時更新準心提示樣式
     document.addEventListener('pointerlockchange', () => {

@@ -2,6 +2,8 @@
 // 方式1: WASD/方向鍵移動，J 攻擊，K 技能1，L 技能2，; 大絕
 // 方式2: 方向鍵移動，A 攻擊，S 技能1，D 技能2，F 大絕
 
+import { getViewSettings, subscribeViewSettings } from '../utils/viewSettings';
+
 const KEY_MAPS = {
   'wasd-jkl': {
     KeyW: 'up', ArrowUp: 'up',
@@ -72,6 +74,8 @@ export function createInput(controlScheme = 'wasd-jkl') {
   let pointerLocked = false;
   let mouseBasic = false;             // 滑鼠左鍵 = 普通攻擊
   const LOOK_SENS = 0.0024, PITCH_MIN = -1.2, PITCH_MAX = 1.2;
+  let viewCfg = getViewSettings();    // 滑鼠靈敏度 / 反轉 Y（由設定面板即時更新）
+  subscribeViewSettings((s) => { viewCfg = s; });
 
   function setKey(code, down) {
     const action = keyMap[code];
@@ -104,8 +108,9 @@ export function createInput(controlScheme = 'wasd-jkl') {
   });
   document.addEventListener('mousemove', (e) => {
     if (!enabled || viewMode === 0 || !pointerLocked) return;
-    lookYaw += e.movementX * LOOK_SENS;       // 滑鼠右移 → 視角右轉
-    lookPitch -= e.movementY * LOOK_SENS;     // 滑鼠上移 → 仰視（兩模式一致）
+    const sens = LOOK_SENS * (viewCfg.sensitivity || 1);
+    lookYaw += e.movementX * sens;            // 滑鼠右移 → 視角右轉
+    lookPitch += (viewCfg.invertY ? e.movementY : -e.movementY) * sens; // 上移=仰視（反轉 Y 則相反）
     if (lookPitch > PITCH_MAX) lookPitch = PITCH_MAX;
     else if (lookPitch < PITCH_MIN) lookPitch = PITCH_MIN;
   });

@@ -226,8 +226,8 @@ const data = {
           const speed = bc.isPermanentlyFlooded ? 75 : 45; // 二階段氣泡移動更快
 
           const bubbleZone = makeZone(boss.id, zx, zy, {
-            radius: 95,
-            lifetime: bc.isPermanentlyFlooded ? 10.0 : bc.floodDurationTimer,
+            radius: 130,
+            lifetime: bc.isPermanentlyFlooded ? 12.0 : 9999, // 非永久時讓氣泡存活至退潮
             color: '#94d2bd',
             vfx: 'boss_siren_safe_bubble',
             vx: Math.cos(moveAngle) * speed,
@@ -293,15 +293,18 @@ const data = {
           }
 
           if (!inSafeZone) {
-            // 溺水扣血 (0.5% max HP / 0.5s) & 25% 減速
+            // 溺水減速 25%
             applyEffect(o, 'slow', { duration: 0.35, factor: 0.75 }, boss.id);
 
+            // 溺水傷害每 1.5s 扣 0.5% HP，但不超過最大HP的80% (不致死)
             o._drownTimer = (o._drownTimer || 0) - dt;
             if (o._drownTimer <= 0) {
-              o._drownTimer = 0.5;
-              const dmg = Math.max(8, Math.round(o.maxHp * 0.005));
-              dealDamage(state, o, dmg, boss.id, { dot: true });
-              addFx(state, { type: 'popup', x: o.x, y: o.y - 20, color: '#00ffff', life: 0.75, text: '溺水', kind: 'damage' });
+              o._drownTimer = 1.5;
+              if (o.hp > o.maxHp * 0.2) {
+                const dmg = Math.max(6, Math.round(o.maxHp * 0.005));
+                dealDamage(state, o, dmg, boss.id, { dot: true });
+                addFx(state, { type: 'popup', x: o.x, y: o.y - 20, color: '#00ffff', life: 0.75, text: '溺水', kind: 'damage' });
+              }
             }
           }
         }
@@ -331,15 +334,14 @@ const data = {
         if (trappedPlayer && trappedPlayer.alive) {
           trappedPlayer.floatHeight = 16;
 
-          // 強制將被困玩家的位置鎖在水泡中心
-          trappedPlayer.x = o.x;
-          trappedPlayer.y = o.y;
-          trappedPlayer.vx = trappedPlayer.vy = trappedPlayer.kvx = trappedPlayer.kvy = 0;
-
-          // 多人模式下才持續暈眩被困玩家
           if (o.shouldStun) {
+            // 多人：持續暈眩且鎖定位置，隊友需集火打爆水泡救人
+            trappedPlayer.x = o.x;
+            trappedPlayer.y = o.y;
+            trappedPlayer.vx = trappedPlayer.vy = trappedPlayer.kvx = trappedPlayer.kvy = 0;
             applyEffect(trappedPlayer, 'stun', { duration: 0.3 }, boss.id);
           }
+          // 單人：不鎖定位置與輸入，讓玩家能自行攻擊水泡打出來
 
           // 水泡內持續扣血 (頻率調低至 1.2s，傷害減半為 0.5% 最大生命值)
           o.dmgTimer = (o.dmgTimer || 0) - dt;

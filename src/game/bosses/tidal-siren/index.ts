@@ -226,7 +226,7 @@ const data = {
           const speed = bc.isPermanentlyFlooded ? 75 : 45; // 二階段氣泡移動更快
 
           const bubbleZone = makeZone(boss.id, zx, zy, {
-            radius: 130,
+            radius: 200,
             lifetime: bc.isPermanentlyFlooded ? 12.0 : 9999, // 非永久時讓氣泡存活至退潮
             color: '#94d2bd',
             vfx: 'boss_siren_safe_bubble',
@@ -257,11 +257,19 @@ const data = {
 
         if (bc.currentDuration > 0) {
           bc.currentDuration -= dt;
-          const windForce = 145; // 推進力
+          const windForce = 145;
+          const currentSafeZones = (state.zones || []).filter((z: any) => z.vfx === 'boss_siren_safe_bubble');
           for (const o of Object.values(state.players) as any[]) {
             if (o.team === 1 && o.alive) {
-              o.x = Math.max(22, Math.min(ARENA.width - 22, o.x + bc.currentDir.x * windForce * dt));
-              o.y = Math.max(22, Math.min(ARENA.height - 22, o.y + bc.currentDir.y * windForce * dt));
+              // 安全區內的玩家免疫暗流推動 (安全區名符其實「完全安全」)
+              const inSafe = currentSafeZones.some((sz: any) => {
+                const dx = o.x - sz.x, dy = o.y - sz.y;
+                return dx * dx + dy * dy <= sz.radius * sz.radius;
+              });
+              if (!inSafe) {
+                o.x = Math.max(22, Math.min(ARENA.width - 22, o.x + bc.currentDir.x * windForce * dt));
+                o.y = Math.max(22, Math.min(ARENA.height - 22, o.y + bc.currentDir.y * windForce * dt));
+              }
             }
           }
           if (Math.random() < 0.25) {
@@ -334,22 +342,32 @@ const data = {
         if (trappedPlayer && trappedPlayer.alive) {
           trappedPlayer.floatHeight = 16;
 
+          // 無論單/多人，都鎖定位置在水泡中心（不能逃跑）
+          trappedPlayer.x = o.x;
+          trappedPlayer.y = o.y;
+          trappedPlayer.vx = trappedPlayer.vy = trappedPlayer.kvx = trappedPlayer.kvy = 0;
+
           if (o.shouldStun) {
-            // 多人：持續暈眩且鎖定位置，隊友需集火打爆水泡救人
-            trappedPlayer.x = o.x;
-            trappedPlayer.y = o.y;
-            trappedPlayer.vx = trappedPlayer.vy = trappedPlayer.kvx = trappedPlayer.kvy = 0;
+            // 多人：額外施加暈眩，完全無法行動，需隊友集火打爆水泡救人
             applyEffect(trappedPlayer, 'stun', { duration: 0.3 }, boss.id);
           }
-          // 單人：不鎖定位置與輸入，讓玩家能自行攻擊水泡打出來
+          // 單人：鎖定位置但不暈眩 → 玩家仍可使用技能攻擊水泡自救
 
           // 水泡內持續扣血 (頻率調低至 1.2s，傷害減半為 0.5% 最大生命值)
+          // 若水泡落在安全氣泡區內，豁免傷害（獎勵在安全區附近的隊友）
+          const safeZonesForBubble = (state.zones || []).filter((z: any) => z.vfx === 'boss_siren_safe_bubble');
+          const bubbleInSafe = safeZonesForBubble.some((sz: any) => {
+            const dx = o.x - sz.x, dy = o.y - sz.y;
+            return dx * dx + dy * dy <= sz.radius * sz.radius;
+          });
           o.dmgTimer = (o.dmgTimer || 0) - dt;
           if (o.dmgTimer <= 0) {
             o.dmgTimer = 1.2;
-            const dmg = Math.max(6, Math.round(trappedPlayer.maxHp * 0.005));
-            dealDamage(state, trappedPlayer, dmg, boss.id, { dot: true });
-            addFx(state, { type: 'popup', x: trappedPlayer.x, y: trappedPlayer.y - 22, color: '#ff4d6d', life: 0.75, text: Math.round(dmg), kind: 'damage' });
+            if (!bubbleInSafe) {
+              const dmg = Math.max(6, Math.round(trappedPlayer.maxHp * 0.005));
+              dealDamage(state, trappedPlayer, dmg, boss.id, { dot: true });
+              addFx(state, { type: 'popup', x: trappedPlayer.x, y: trappedPlayer.y - 22, color: '#ff4d6d', life: 0.75, text: Math.round(dmg), kind: 'damage' });
+            }
           }
         }
       }

@@ -73,12 +73,12 @@ describe('action handler registry', () => {
 });
 
 describe('boss registry', () => {
-  it('provides 12 bosses, one per round 1..12', () => {
-    expect(BOSS_COUNT).toBe(12);
-    expect(BOSSES.length).toBe(12);
-    for (let round = 1; round <= 12; round++) {
+  it('provides 13 bosses, one per round 1..13', () => {
+    expect(BOSS_COUNT).toBe(13);
+    expect(BOSSES.length).toBe(13);
+    for (let round = 1; round <= 13; round++) {
       expect(getBossForRound(round), `boss for round ${round}`).toBeTruthy();
     }
-    expect(getBossForRound(13)).toBeNull();
+    expect(getBossForRound(14)).toBeNull();
   });
 });

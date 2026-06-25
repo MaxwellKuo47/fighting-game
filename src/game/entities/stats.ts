@@ -8,6 +8,12 @@ export function isBossRun(state: GameState) {
 
 export function initRunStats(state: GameState) {
   if (!isBossRun(state)) return;
+  setupStats(state);
+}
+
+// 在任意模式啟用統計累計（供 DPS 練功房 / headless 量測框架使用）。
+// 與 initRunStats 同構，但不檢查 mode → 可在 training/ffa 場景直接開啟。
+export function setupStats(state: GameState) {
   state.stats = {
     runStart: state.time || 0,
     roundStart: state.time || 0,
@@ -36,6 +42,7 @@ function ensurePlayerStats(state: GameState, p: Player) {
       kills: 0, deaths: 0, revives: 0,
       skillUses: { basic: 0, skill1: 0, skill2: 0, ultimate: 0, evade: 0 },
       maxHit: 0, critCount: 0, ccApplied: 0,
+      perSkill: {}, // DPS 歸因：source slot → 累積傷害
     };
   }
   // 角色可能在房間內換 — 用最新資料覆寫
@@ -66,7 +73,7 @@ export function recordRetry(state: GameState) {
   state.stats._retryCount = (state.stats._retryCount || 0) + 1;
 }
 
-export function recordDamage(state: GameState, attackerId: EntityId, target: Player, amount: number, opts: { isCrit?: boolean } = {}) {
+export function recordDamage(state: GameState, attackerId: EntityId, target: Player, amount: number, opts: { isCrit?: boolean; source?: string } = {}) {
   if (!state.stats || amount <= 0) return;
   const attacker = state.players[attackerId];
   if (attacker) {
@@ -76,9 +83,14 @@ export function recordDamage(state: GameState, attackerId: EntityId, target: Pla
     if (ownerP && ownerP.team === 1 && !ownerP.ownerId) {
       const s = ensurePlayerStats(state, ownerP);
       if (s) {
+        // DPS 計時自「首次造成傷害」起算（練功房用；手動重置 setupStats 會清除重新等待）。
+        if (state.stats.firstDamageTime == null) state.stats.firstDamageTime = state.time || 0;
         s.dmgDealt += amount;
         if (amount > s.maxHit) s.maxHit = amount;
         if (opts.isCrit) s.critCount += 1;
+        const src = opts.source || 'other';
+        if (!s.perSkill) s.perSkill = {};
+        s.perSkill[src] = (s.perSkill[src] || 0) + amount;
       }
     }
   }
@@ -138,4 +150,29 @@ export function recordCcApplied(state: GameState, casterId: EntityId) {
   if (!ownerP || ownerP.team !== 1 || ownerP.ownerId) return;
   const s = ensurePlayerStats(state, ownerP);
   if (s) s.ccApplied += 1;
+}
+
+// 把某玩家的累積統計整理成 DPS 摘要（供練功房即時 HUD 使用）。
+// DPS 視窗自「首次造成傷害」起算（firstDamageTime）；未攻擊前 elapsed/dps = 0。
+// perSkill 依傷害由高到低排序，並附 dps 與佔比。
+export function summarizeDps(state: GameState, playerId: EntityId) {
+  const s = state.stats && state.stats.perPlayer[playerId as string];
+  if (!s) return null;
+  const started = state.stats.firstDamageTime != null;
+  const elapsed = started ? Math.max(0, (state.time || 0) - (state.stats.firstDamageTime || 0)) : 0;
+  const win = Math.max(1 / 30, elapsed); // 下限一個 tick，避免首幀除以近 0 暴衝
+  const total = s.dmgDealt || 0;
+  const perSkill = Object.keys(s.perSkill || {})
+    .map((slot) => ({ slot, dmg: s.perSkill[slot], dps: started ? s.perSkill[slot] / win : 0, pct: total ? s.perSkill[slot] / total : 0 }))
+    .sort((a, b) => b.dmg - a.dmg);
+  return {
+    elapsed,
+    total,
+    dps: started ? total / win : 0,
+    dmgTaken: s.dmgTaken || 0,
+    maxHit: s.maxHit || 0,
+    critCount: s.critCount || 0,
+    skillUses: { ...(s.skillUses || {}) },
+    perSkill,
+  };
 }

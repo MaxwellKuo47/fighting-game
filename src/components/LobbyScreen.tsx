@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { CHARACTERS as RAW_CHARACTERS, getCharacter as rawGetCharacter } from '../game/characters.js';
 import { BOSSES as RAW_BOSSES } from '../game/bosses.js';
-import { getCodexEntry, type SkillSlot } from '../utils/characterCodex';
-import type { CharacterMeta, ControlScheme, GameFlags, LobbyView, SkillMeta } from '../types';
+import { getCodexEntry } from '../utils/characterCodex';
+import { SkillCodexList } from './SkillCodexList';
+import type { CharacterMeta, ControlScheme, GameFlags, LobbyView } from '../types';
 
 const CHARACTERS = RAW_CHARACTERS as unknown as CharacterMeta[];
 const getCharacter = rawGetCharacter as (id: string) => CharacterMeta;
@@ -39,30 +40,9 @@ function getSkillDisplay(scheme: ControlScheme) {
   }
 }
 
-const SKILL_SLOTS: SkillSlot[] = ['basic', 'skill1', 'skill2', 'ultimate'];
-
-function actionTypeLabel(type?: string) {
-  switch (type) {
-    case 'projectile': return '投射物';
-    case 'melee': return '近戰';
-    case 'dash': return '衝刺';
-    case 'blink': return '瞬移';
-    case 'zone': return '區域';
-    case 'buff': return '增益';
-    case 'star_orbit_cannon': return '星砲';
-    case 'star_orbit_guard': return '增益';
-    case 'star_orbit_burst': return '大絕';
-    case 'samurai_iaijutsu': return '奧義';
-    default: return type;
-  }
-}
-
-function secondsLabel(value?: number) {
-  return typeof value === 'number' ? `${value}s` : undefined;
-}
-
 // 選角詳情面板：技能說明以「角色圖鑑.md」為單一來源 (getCodexEntry)，
 // 解析不到時 fallback 至程式內既有欄位；數值 (HP/MP/移速) 一律取自程式碼以保證與實際一致。
+// 技能清單本身抽到共用的 <SkillCodexList>（與練功房共用）。
 function CharacterDetail({ char, skillDisplay }: { char: CharacterMeta; skillDisplay: ReturnType<typeof getSkillDisplay> }) {
   // 圖鑑（角色圖鑑.md）以數字 id 為鍵；角色的 order 保留該對照（= 舊數字 id）。
   const codex = char.order != null ? getCodexEntry(char.order) : null;
@@ -70,7 +50,6 @@ function CharacterDetail({ char, skillDisplay }: { char: CharacterMeta; skillDis
   const description = codex?.description ?? char.desc;
   const talent = codex?.talent ?? char.talent;
   const synergy = codex?.synergy ?? char.synergy;
-  const evade = char.evade as (SkillMeta & { cd?: number }) | undefined;
 
   return (
     <div className="char-detail">
@@ -91,46 +70,7 @@ function CharacterDetail({ char, skillDisplay }: { char: CharacterMeta; skillDis
       {talent && <div className="char-talent"><b>天賦 · {talent.name}</b>　{talent.desc}</div>}
       {synergy && <div className="char-synergy"><b>搭配</b>　{synergy}</div>}
 
-      <div className="skill-list">
-        {SKILL_SLOTS.map((slot) => {
-          const cs = codex?.skills.find((s) => s.slot === slot);
-          const fallback = char[slot] as SkillMeta | undefined;
-          const name = cs?.name ?? fallback?.name;
-          if (!name) return null;
-          const type = cs?.type ?? actionTypeLabel(fallback?.type);
-          const cooldown = cs?.cooldown ?? secondsLabel(fallback?.cd);
-          const mana = cs?.mana ?? (typeof fallback?.manaCost === 'number' ? String(fallback.manaCost) : undefined);
-          const explain = cs?.explain ?? fallback?.desc;
-          return (
-            <div className="skill-row" key={slot}>
-              <span className="skill-key">{skillDisplay[slot]}</span>
-              <div className="skill-body">
-                <div className="skill-head">
-                  <span className="skill-name">{name}</span>
-                  {slot === 'ultimate' && <span className="skill-tag ult">大絕</span>}
-                  {type && <span className="skill-tag">{type}</span>}
-                  {cooldown && cooldown !== '—' && <span className="skill-tag">冷卻 {cooldown}</span>}
-                  {mana && mana !== '—' && <span className="skill-tag">魔力 {mana}</span>}
-                </div>
-                {explain && <div className="skill-explain">{explain}</div>}
-              </div>
-            </div>
-          );
-        })}
-        {evade && (
-          <div className="skill-row">
-            <span className="skill-key">Space</span>
-            <div className="skill-body">
-              <div className="skill-head">
-                <span className="skill-name">{evade.name}</span>
-                <span className="skill-tag">閃避</span>
-                {evade.cd ? <span className="skill-tag">冷卻 {evade.cd}s</span> : null}
-              </div>
-              <div className="skill-explain">短暫無敵位移，可閃避攻擊、拉開距離。</div>
-            </div>
-          </div>
-        )}
-      </div>
+      <SkillCodexList char={char} skillDisplay={skillDisplay} />
     </div>
   );
 }

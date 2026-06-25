@@ -2,9 +2,13 @@
 // maxHit / 爆擊 / 承受傷害，並提供換角、重置、木人還手切換、離開。
 // 資料由 controller 每 ~0.15s 經 'trainingStats' 事件推送（host 權威 state 計算）。
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { CHARACTERS } from '../game/characters.js';
-import type { GameController, TrainingStatsView, TrainingSkillRow } from '../types';
+import { SkillCodexList, type SkillKeyDisplay } from './SkillCodexList';
+import type { CharacterMeta, GameController, TrainingStatsView, TrainingSkillRow } from '../types';
+
+// 練功房用預設按鍵字（wasd-jkl）；與面板底部操作提示一致。
+const TRAIN_KEYS: SkillKeyDisplay = { basic: 'J', skill1: 'K', skill2: 'L', ultimate: ';' };
 
 const SLOT_LABEL: Record<string, string> = {
   basic: '普攻', skill1: '技能1', skill2: '技能2', ultimate: '大招', evade: '閃避',
@@ -24,6 +28,11 @@ interface Props {
 
 export function TrainingOverlay({ stats, controller }: Props) {
   const chars = useMemo(() => (CHARACTERS as any[]).map((c) => ({ id: c.id, name: c.name })), []);
+  const charMeta = useMemo(
+    () => (CHARACTERS as any[]).find((c) => c.id === stats.charId) as CharacterMeta | undefined,
+    [stats.charId],
+  );
+  const [showSkills, setShowSkills] = useState(true);
   const blur = (e: React.MouseEvent) => (e.currentTarget as HTMLElement).blur();
 
   return (
@@ -77,6 +86,20 @@ export function TrainingOverlay({ stats, controller }: Props) {
       <div style={{ fontSize: 10.5, opacity: 0.55, marginTop: 8, lineHeight: 1.5 }}>
         移動貼近木人，J 普攻／K L 技能／; 大招。換角會重開測試。
       </div>
+
+      {charMeta && (
+        <div style={skillSection}>
+          <button style={skillToggle} onClick={(e) => { blur(e); setShowSkills((v) => !v); }}>
+            <span>📖 技能說明</span>
+            <span style={{ opacity: 0.6, fontWeight: 400 }}>{showSkills ? '收起 ▾' : '展開 ▸'}</span>
+          </button>
+          {showSkills && (
+            <div style={skillScroll}>
+              <SkillCodexList char={charMeta} skillDisplay={TRAIN_KEYS} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -133,3 +156,11 @@ const btn: React.CSSProperties = { ...btnBase };
 const btnPrimary: React.CSSProperties = { ...btnBase, background: 'rgba(122,162,255,0.25)', borderColor: 'rgba(122,162,255,0.5)', fontWeight: 600 };
 const btnOn: React.CSSProperties = { ...btnBase, background: 'rgba(255,107,107,0.28)', borderColor: 'rgba(255,107,107,0.55)', fontWeight: 600 };
 const btnGhost: React.CSSProperties = { padding: '4px 10px', borderRadius: 8, fontSize: 12, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.15)', color: '#e8eef6', background: 'transparent' };
+const skillSection: React.CSSProperties = { marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.1)' };
+const skillToggle: React.CSSProperties = {
+  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  padding: '6px 9px', borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+  border: '1px solid rgba(255,255,255,0.15)', color: '#e8eef6', background: 'rgba(255,255,255,0.06)',
+};
+// 技能清單可能比視窗高 → 限高可捲動，避免面板溢出畫面。
+const skillScroll: React.CSSProperties = { maxHeight: '42vh', overflowY: 'auto', paddingRight: 2 };

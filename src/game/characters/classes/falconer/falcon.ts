@@ -28,11 +28,11 @@ function effectiveRange(p: any): number {
 }
 
 // 一次飛行的「招式參數」。總傷害守恆：hits × hitDmg × crit。
-// 平時獵鷹突擊：10 × 5.4 × 1.7 ≈ 91.8（不帶擊退，避免把敵人推離自己的輸出範圍）。
-const BLITZ = { hits: 10, hitDmg: 5.4, hitGap: 0.035, strikeAt: 0.2, dur: 0.62, knockback: 0 };
+// 平時獵鷹突擊：10 × 7.0 × 1.7 ≈ 119（拉高鷹的輸出，老鷹是本角色主要 DPS 來源）。
+const BLITZ = { hits: 10, hitDmg: 7.0, hitGap: 0.035, strikeAt: 0.2, dur: 0.62, knockback: 0 };
 // 大絕鷹擊風暴：每趟更快（0.4s 來回）、6 段；風暴持續期間連續來回 → 打很多次。
 // 每趟首擊帶「中等擊退」（弱於 K 的鷹擊·震退），把敵群推開＝保命。
-const STORM = { hits: 6, hitDmg: 6.2, hitGap: 0.04, strikeAt: 0.12, dur: 0.4, knockback: 160 };
+const STORM = { hits: 6, hitDmg: 7.6, hitGap: 0.04, strikeAt: 0.12, dur: 0.4, knockback: 160 };
 
 // 整數 PRNG（Math.imul 全平台一致），回傳 0..1。
 function mulberry32(a: number): number {

@@ -2,6 +2,8 @@
 // 由 renderer 每幀 sync(players, dt, getEntityPos)；位置取 render 端平滑後的場景座標（跟模型同步不抖動）。
 import * as THREE from 'three';
 
+const TMP_COLOR = new THREE.Color();   // 顏色過渡暫存，避免每幀配置
+
 export function createFighterChiLayer(scene) {
   const entries = new Map(); // pid -> { group, spheres[], mats[], geo }
   let phase = 0;
@@ -44,15 +46,18 @@ export function createFighterChiLayer(scene) {
       const e = ensure(p.id);
       const pos = getPos ? getPos(p.id) : null;
       if (pos) e.group.position.set(pos.x, 0, pos.z);
+      const full = chi >= 5;                                  // 滿氣 → 全部轉赤
       for (let i = 0; i < 5; i++) {
         const active = i < chi;
         const mat = e.mats[i];
-        mat.opacity += ((active ? 0.92 : 0) - mat.opacity) * Math.min(1, dt * 10); // 淡入/淡出
+        mat.opacity += ((active ? (full ? 0.98 : 0.92) : 0) - mat.opacity) * Math.min(1, dt * 10); // 淡入/淡出
+        // 顏色：滿氣赤紅 0xff3320、未滿金黃 0xffd24a，平滑過渡
+        mat.color.lerp(TMP_COLOR.setHex(full ? 0xff3320 : 0xffd24a), Math.min(1, dt * 8));
         const m = e.spheres[i];
-        const ang = phase * 1.6 + (i / 5) * Math.PI * 2;
-        m.position.set(Math.cos(ang) * 25, 36 + Math.sin(phase * 3 + i) * 2, Math.sin(ang) * 25);
-        const pulse = 0.85 + 0.15 * Math.sin(phase * 6 + i);
-        m.scale.setScalar((active ? 1 : 0.55) * pulse);
+        const ang = phase * (full ? 2.4 : 1.6) + (i / 5) * Math.PI * 2;   // 滿氣旋更快
+        m.position.set(Math.cos(ang) * 27, 36 + Math.sin(phase * 3 + i) * 2, Math.sin(ang) * 27);
+        const pulse = 0.85 + 0.15 * Math.sin(phase * (full ? 9 : 6) + i);
+        m.scale.setScalar((active ? (full ? 1.2 : 1) : 0.55) * pulse);
         m.visible = mat.opacity > 0.02;
       }
     }

@@ -54,46 +54,72 @@ registerVfx('fighter_combo', {
 registerVfx('fighter_qi', {
   onCast(ctx, f, c) {
     const chi = f.chi || 1;
-    addFlash(ctx, 0.08, '#ffe9a8');
-    sphereFlash(ctx, c, { color: '#fff3c8', from: 6, to: 20 + chi * 3, life: 0.26, alpha: 0.9 });
-    ring(ctx, c, { color: '#ffd76a', from: 38, to: 6, life: 0.3, y: 5 });            // 內縮環＝聚氣
-    pillar(ctx, c, { color: '#ffe27a', h: 56 + chi * 10, r: 9, taper: 0.4, life: 0.4, alpha: 0.6, grow: 0.3 });
-    if (f.full) addFlash(ctx, 0.12, '#ffd700');                                       // 滿氣額外亮一下
-    for (let i = 0; i < 18; i++) {
-      const a = (i / 18) * Math.PI * 2, rr = 48 + Math.random() * 22;
-      ctx.particles.spawn({ x: c.x + Math.cos(a) * rr, y: 8 + Math.random() * 34, z: c.z + Math.sin(a) * rr, vx: -Math.cos(a) * 150, vy: 24, vz: -Math.sin(a) * 150, gravity: -36, drag: 2.6, life: 0.4, size: 3.4, color: '#ffe9a8', fade: true });
+    const full = !!f.full;                                  // 滿氣＝赤紅
+    const col = full ? '#ff7a44' : '#ffd76a';
+    const col2 = full ? '#ff3320' : '#ffe9a8';
+    addFlash(ctx, full ? 0.14 : 0.08, col2);
+    sphereFlash(ctx, c, { color: full ? '#ffd0b4' : '#fff3c8', from: 6, to: 22 + chi * 3, life: 0.28, alpha: 0.92 });
+    // 大而遠的內縮聚氣環（從外圍 95 收束到身上）＋一道副環
+    ring(ctx, c, { color: col, from: 96, to: 12, life: 0.34, y: 5, ease: true });
+    ring(ctx, c, { color: col2, from: 72, to: 8, life: 0.42, y: 8, alpha: 0.7 });
+    pillar(ctx, c, { color: col, h: 60 + chi * 12, r: 10, taper: 0.4, life: 0.42, alpha: 0.62, grow: 0.3 });
+    if (full) addFlash(ctx, 0.12, '#ff3320');
+    // 自更遠處向心匯聚的氣（更遠、更多、更快）
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * Math.PI * 2, rr = 84 + Math.random() * 28;
+      ctx.particles.spawn({ x: c.x + Math.cos(a) * rr, y: 8 + Math.random() * 42, z: c.z + Math.sin(a) * rr, vx: -Math.cos(a) * 205, vy: 26, vz: -Math.sin(a) * 205, gravity: -34, drag: 2.4, life: 0.45, size: 3.6, color: col2, fade: true });
     }
   },
 });
 
-// ── 不動明王（L）：金身護體。金色穹頂 + 旋轉光環 + 莊嚴金光，持續約增益時間。
+// ── 不動明王（L）：金身護體。旋轉金剛多面護罩 + 頭頂佛光輪 + 八邊形種子字腳陣 + 持續上竄的火焰光背。
+//   （不動明王＝火生三昧的忿怒護法；用「火焰光背＋金剛護罩」取代原本平淡的半透明穹頂。）
 registerVfx('fighter_steelbody', {
   onCast(ctx, f, c) {
-    addFlash(ctx, 0.2, '#ffd76a');
-    addShake(ctx, 6);
-    ring(ctx, c, { color: '#ffd700', from: 6, to: 70, life: 0.5, y: 3, ease: true });
-    sphereFlash(ctx, c, { color: '#fff3c8', from: 8, to: 46, life: 0.3, alpha: 0.95 });
+    addFlash(ctx, 0.26, '#ffb84a');
+    addShake(ctx, 8);
+    ring(ctx, c, { color: '#ffd700', from: 6, to: 84, life: 0.5, y: 3, ease: true });
+    sphereFlash(ctx, c, { color: '#fff3c8', from: 8, to: 52, life: 0.3, alpha: 0.96 });
+    pillar(ctx, c, { color: '#ffcf5a', h: 120, r: 16, taper: 0.4, life: 0.5, alpha: 0.72, grow: 0.3 });
 
     const DUR = 2.0;
     const g = new THREE.Group(); g.position.set(c.x, 0, c.z);
-    const domeMat = new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(34, 20, 14), domeMat); dome.position.y = 26; dome.scale.y = 1.25;
-    const haloMat = new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-    const halo = new THREE.Mesh(new THREE.TorusGeometry(20, 1.4, 8, 28), haloMat); halo.rotation.x = Math.PI / 2; halo.position.y = 46; // 頭頂佛光
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-    const footRing = new THREE.Mesh(new THREE.RingGeometry(28, 34, 28), ringMat); footRing.rotation.x = -Math.PI / 2; footRing.position.y = 2;
-    g.add(dome, halo, footRing);
-    g.userData.geo = { dispose() { dome.geometry.dispose(); halo.geometry.dispose(); footRing.geometry.dispose(); } };
-    g.userData.mat = { dispose() { domeMat.dispose(); haloMat.dispose(); ringMat.dispose(); } };
+    // 旋轉金剛多面護罩（faceted wireframe，比平滑穹頂更狠）+ 內層淡實體
+    const shellMat = new THREE.MeshBasicMaterial({ color: 0xffca54, transparent: true, opacity: 0.26, blending: THREE.AdditiveBlending, depthWrite: false, wireframe: true });
+    const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(36, 1), shellMat); shell.position.y = 30; shell.scale.y = 1.2;
+    const shell2Mat = new THREE.MeshBasicMaterial({ color: 0xffe6a0, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const shell2 = new THREE.Mesh(new THREE.IcosahedronGeometry(33, 1), shell2Mat); shell2.position.y = 30; shell2.scale.y = 1.2;
+    // 頭頂佛光輪
+    const haloMat = new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(22, 1.7, 8, 30), haloMat); halo.rotation.x = Math.PI / 2; halo.position.y = 52;
+    // 八邊形種子字腳陣（八小光塊繞八邊外框）
+    const glyphMat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const footRing = new THREE.Mesh(new THREE.RingGeometry(30, 36, 8), glyphMat); footRing.rotation.x = -Math.PI / 2; footRing.position.y = 2;
+    const glyphGeo = new THREE.BoxGeometry(6, 1, 2.4);
+    const glyphs = [];
+    for (let i = 0; i < 8; i++) { const gm = new THREE.Mesh(glyphGeo, glyphMat); const a = (i / 8) * Math.PI * 2; gm.position.set(Math.cos(a) * 33, 3, Math.sin(a) * 33); gm.rotation.y = -a; g.add(gm); glyphs.push(gm); }
+    g.add(shell, shell2, halo, footRing);
+    g.userData.geo = { dispose() { shell.geometry.dispose(); shell2.geometry.dispose(); halo.geometry.dispose(); footRing.geometry.dispose(); glyphGeo.dispose(); } };
+    g.userData.mat = { dispose() { shellMat.dispose(); shell2Mat.dispose(); haloMat.dispose(); glyphMat.dispose(); } };
+    let frame = 0;
     ctx.addTransient(g, DUR, (m, t) => {
       const fade = t < 0.85 ? 1 : (1 - t) / 0.15;
-      const pulse = 0.85 + 0.15 * Math.sin(t * DUR * 8);
-      domeMat.opacity = 0.16 * fade * pulse;
-      haloMat.opacity = 0.85 * fade;
-      ringMat.opacity = 0.7 * fade * pulse;
+      const pulse = 0.8 + 0.2 * Math.sin(t * DUR * 9);
+      shellMat.opacity = 0.26 * fade * pulse; shell2Mat.opacity = 0.1 * fade;
+      haloMat.opacity = 0.9 * fade; glyphMat.opacity = 0.85 * fade * pulse;
+      shell.rotation.y += 0.03; shell.rotation.x += 0.012;
+      shell2.rotation.y -= 0.022;
       halo.rotation.z += 0.05;
-      footRing.rotation.z -= 0.04;
-      m.position.y = Math.sin(t * DUR * 5) * 1.0;
+      footRing.rotation.z -= 0.03;
+      for (const gm of glyphs) gm.rotation.y += 0.04;
+      m.position.y = Math.sin(t * DUR * 5) * 0.8;
+      // 火焰光背：持續上竄的金焰（負重力＝往上舔）
+      if ((frame++ % 2 === 0) && t < 0.9) {
+        for (let k = 0; k < 3; k++) {
+          const a = Math.random() * Math.PI * 2, rr = 22 + Math.random() * 14;
+          ctx.particles.spawn({ x: c.x + Math.cos(a) * rr, y: 4, z: c.z + Math.sin(a) * rr, vx: Math.cos(a) * 10, vy: 130 + Math.random() * 130, vz: Math.sin(a) * 10, gravity: -30, drag: 1.6, life: 0.5 + Math.random() * 0.3, size: 4 + Math.random() * 3, color: k % 2 ? '#ffb43a' : '#ffe27a', fade: true });
+        }
+      }
     });
   },
 });
@@ -170,38 +196,62 @@ registerVfx('fighter_dragon', {
         crackMat.opacity = 0.95 * (1 - Math.max(0, (tt - 0.5) / 0.5));
       });
 
-      // 3) 金龍：自砸點盤旋衝天（鱗段 + 龍頭），chi 越多越粗壯。
-      const dragon = new THREE.Group(); dragon.position.set(hit.x, 0, hit.z);
-      const segMat = new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
-      const segGeo = new THREE.TorusGeometry(1, 0.34, 8, 18);
-      const N = 9;
-      const rings = [];
-      for (let k = 0; k < N; k++) { const rm = new THREE.Mesh(segGeo, segMat); rm.rotation.x = -Math.PI / 2; dragon.add(rm); rings.push(rm); }
-      const headMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xff8a00, emissiveIntensity: 2.4, transparent: true, opacity: 0.98 });
-      const headGeo = new THREE.ConeGeometry(9 * scale, 26 * scale, 6);
-      const head = new THREE.Mesh(headGeo, headMat); head.rotation.x = Math.PI / 2;
-      const hornGeo = new THREE.ConeGeometry(1.6, 10, 5);
-      const horns = new THREE.Group();
-      for (const sx of [-1, 1]) { const h = new THREE.Mesh(hornGeo, headMat); h.position.set(sx * 4, 4, -6); h.rotation.x = -0.5; horns.add(h); }
-      const headG = new THREE.Group(); headG.add(head, horns); dragon.add(headG);
-      dragon.userData.geo = { dispose() { segGeo.dispose(); headGeo.dispose(); hornGeo.dispose(); } };
-      dragon.userData.mat = { dispose() { segMat.dispose(); headMat.dispose(); } };
-      const rise = 300 + chi * 26;
-      ctx.addTransient(dragon, 1.4, (mm, tt) => {
-        rings.forEach((rm, idx) => {
-          const st = Math.max(0, tt - idx * 0.06);
-          const ang = st * Math.PI * 4;
-          const rad = (26 - idx * 1.4) * scale;
-          rm.position.set(Math.cos(ang) * rad, st * rise, Math.sin(ang) * rad);
-          rm.scale.setScalar((6 - idx * 0.3) * scale);
-        });
-        const ang = tt * Math.PI * 4;
-        const rad = 26 * scale;
-        headG.position.set(Math.cos(ang) * rad, tt * rise + 16, Math.sin(ang) * rad);
-        headG.rotation.y = -ang;
-        headG.scale.setScalar((1.3 - tt * 0.3) * scale);
-        const op = Math.max(0, 1 - Math.max(0, (tt - 0.55) / 0.45));
-        segMat.opacity = 0.95 * op; headMat.opacity = 0.98 * op;
+      // 3) 金龍：自砸點化龍盤旋衝天 —— TubeGeometry 連續蛇身（沿螺旋曲線、由地竄升揭示）
+      //    + 背鬃 + 細緻龍頭（吻/角/鬚/眼）。chi 越多龍越粗越長。
+      const rise = 300 + chi * 30;
+      const coils = 2.6, SEG = 48;
+      const pts = [];
+      for (let i = 0; i <= SEG; i++) {
+        const u = i / SEG, a = u * Math.PI * 2 * coils, rad = (32 - u * 16) * scale;
+        pts.push(new THREE.Vector3(Math.cos(a) * rad, u * rise, Math.sin(a) * rad));
+      }
+      const curve = new THREE.CatmullRomCurve3(pts);
+      const bodyR = (3.4 + chi * 0.8) * scale;
+      const tubeGeo = new THREE.TubeGeometry(curve, 100, bodyR, 8, false);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffd24a, emissive: 0xff9a1f, emissiveIntensity: 2.0, metalness: 0.45, roughness: 0.28, transparent: true, opacity: 0.98 });
+      const body = new THREE.Mesh(tubeGeo, bodyMat);
+      const dragon = new THREE.Group(); dragon.position.set(hit.x, 0, hit.z); dragon.add(body);
+      // 背鬃（沿身體小尖刺，隨揭示出現）
+      const spikeMat = new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: 0.92, blending: THREE.AdditiveBlending, depthWrite: false });
+      const spikeGeo = new THREE.ConeGeometry(bodyR * 0.7, bodyR * 2.6, 4);
+      const spikes = [];
+      for (let i = 4; i < SEG - 1; i += 3) { const u = i / SEG, p = curve.getPoint(u); const sp = new THREE.Mesh(spikeGeo, spikeMat); sp.position.copy(p); sp.userData.u = u; dragon.add(sp); spikes.push(sp); }
+      // 龍頭（吻朝 -Z，配合 lookAt 沿切線領頭）
+      const headMat = new THREE.MeshStandardMaterial({ color: 0xffe06a, emissive: 0xff8a00, emissiveIntensity: 2.4, metalness: 0.5, roughness: 0.25, transparent: true, opacity: 1 });
+      const skullGeo = new THREE.SphereGeometry(7 * scale, 10, 8);
+      const snoutGeo = new THREE.ConeGeometry(5.4 * scale, 20 * scale, 6);
+      const jawGeo = new THREE.ConeGeometry(4.6 * scale, 13 * scale, 5);
+      const hornGeo = new THREE.ConeGeometry(1.8 * scale, 15 * scale, 5);
+      const eyeGeo = new THREE.SphereGeometry(1.7 * scale, 8, 8);
+      const whiskerGeo = new THREE.CylinderGeometry(0.5 * scale, 0.2 * scale, 24 * scale, 5);
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const whiskerMat = new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: 0.85 });
+      const headG = new THREE.Group();
+      const snout = new THREE.Mesh(snoutGeo, headMat); snout.rotation.x = Math.PI / 2; snout.position.z = -9 * scale;
+      const jaw = new THREE.Mesh(jawGeo, headMat); jaw.rotation.x = Math.PI / 2; jaw.position.set(0, -3.2 * scale, -7 * scale); jaw.scale.y = 0.5;
+      headG.add(new THREE.Mesh(skullGeo, headMat), snout, jaw);
+      for (const sx of [-1, 1]) {
+        const horn = new THREE.Mesh(hornGeo, headMat); horn.position.set(sx * 3 * scale, 5 * scale, 4 * scale); horn.rotation.set(0.6, 0, sx * 0.2); headG.add(horn);
+        const eye = new THREE.Mesh(eyeGeo, eyeMat); eye.position.set(sx * 3.6 * scale, 2 * scale, -5 * scale); headG.add(eye);
+        const wh = new THREE.Mesh(whiskerGeo, whiskerMat); wh.position.set(sx * 5 * scale, -1 * scale, -8 * scale); wh.rotation.set(Math.PI / 2, 0, sx * 0.6); headG.add(wh);
+      }
+      dragon.add(headG);
+      dragon.userData.geo = { dispose() { tubeGeo.dispose(); spikeGeo.dispose(); skullGeo.dispose(); snoutGeo.dispose(); jawGeo.dispose(); hornGeo.dispose(); eyeGeo.dispose(); whiskerGeo.dispose(); } };
+      dragon.userData.mat = { dispose() { bodyMat.dispose(); spikeMat.dispose(); headMat.dispose(); eyeMat.dispose(); whiskerMat.dispose(); } };
+      const idxCount = tubeGeo.index ? tubeGeo.index.count : 0;
+      const _tan = new THREE.Vector3(), _hp = new THREE.Vector3();
+      ctx.addTransient(dragon, 1.5, (mm, tt) => {
+        const prog = Math.min(1, tt / 0.5);                       // 0.5s 竄升完成
+        if (idxCount) tubeGeo.setDrawRange(0, Math.max(0, Math.floor(idxCount * prog)));
+        const hu = Math.min(0.999, prog * 0.999);
+        curve.getPoint(hu, _hp); curve.getTangent(hu, _tan);
+        headG.position.copy(_hp);
+        headG.lookAt(_hp.x + _tan.x, _hp.y + _tan.y, _hp.z + _tan.z);
+        headG.scale.setScalar(prog > 0.05 ? 1 : 0.001);
+        for (const sp of spikes) sp.visible = sp.userData.u <= prog;
+        const op = Math.max(0, 1 - Math.max(0, (tt - 0.62) / 0.38));
+        bodyMat.opacity = 0.98 * op; spikeMat.opacity = 0.92 * op; headMat.opacity = op; whiskerMat.opacity = 0.85 * op;
+        dragon.rotation.y = tt * 0.5;
       });
 
       // 4) 大字「真·昇龍霸」：砸點上方放大字板，punch-in 後上飄淡出。

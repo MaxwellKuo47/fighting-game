@@ -18,6 +18,7 @@ registerTalent('qiflow', {
     return chi > 0 ? dmg * Math.max(0, 1 - chi * (talent.defPerChi || 0.05)) : dmg;
   },
   onDealt({ attacker, talent }) {
+    attacker.chiIdle = 0;                                  // 有出手＝活躍，重置消散計時
     if ((attacker.chiGainCd || 0) > 0) return;            // 節流中：不聚氣（也擋掉大招落地的回補）
     const max = talent.maxChi || 5;
     if ((attacker.chi || 0) < max) {
@@ -27,6 +28,15 @@ registerTalent('qiflow', {
   },
   onTimers(_state, p, dt, talent) {
     if ((p.chiGainCd || 0) > 0) p.chiGainCd = Math.max(0, p.chiGainCd - dt);
+    // 閒置消散：一段時間沒攻擊/聚氣 → 氣球逐顆散去（讓滿氣需要持續作戰、K 不是聚假的）。
+    const idleThresh = talent.idleDecay || 4;
+    const decayInt = talent.decayInterval || 2;
+    if ((p.chi || 0) > 0) {
+      p.chiIdle = (p.chiIdle || 0) + dt;
+      if (p.chiIdle >= idleThresh) { p.chi -= 1; p.chiIdle = idleThresh - decayInt; }
+    } else {
+      p.chiIdle = 0;
+    }
     if ((p.chi || 0) >= (talent.maxChi || 5)) {            // 滿氣：持續刷新加速（移速）
       const prev = (p.effects.haste && p.effects.haste.remaining) || 0;
       p.effects.haste = { remaining: Math.max(prev, 0.3), factor: talent.fullHasteFactor || 1.2 };

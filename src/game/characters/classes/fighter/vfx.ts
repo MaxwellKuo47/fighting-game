@@ -258,7 +258,10 @@ registerVfx('fighter_dragon', {
         headG.quaternion.copy(_q);
         headG.scale.setScalar(prog > 0.05 ? headScale : 0.001);
         for (const sp of spikes) sp.visible = sp.userData.u <= prog;
-        const op = Math.max(0, 1 - Math.max(0, (tt - 1.4) / 0.8));  // 停留後淡出（配合 life 2.2）
+        // 揭示完成後整條龍繼續加速竄向天空、邊升邊淡出消失 —— 不再停在原地（尤其打矮目標時）。
+        const lift = Math.max(0, tt - 0.62);
+        dragon.position.y = lift * 300 + lift * lift * 300;
+        const op = Math.max(0, 1 - Math.max(0, (tt - 1.25) / 0.95));  // 升空途中淡出，life 結束(2.2s)歸零
         bodyMat.opacity = 0.98 * op; spikeMat.opacity = 0.92 * op; headMat.opacity = op; whiskerMat.opacity = 0.85 * op;
         dragon.rotation.y = tt * 0.4;
       });

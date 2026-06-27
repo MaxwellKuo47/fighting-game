@@ -260,10 +260,11 @@ registerVfx('fighter_dragon', {
         for (const sp of spikes) sp.visible = sp.userData.u <= prog;
         // 揭示完成後整條龍繼續加速竄向天空、邊升邊淡出消失 —— 不再停在原地（尤其打矮目標時）。
         const lift = Math.max(0, tt - 0.62);
-        dragon.position.y = lift * 300 + lift * lift * 300;
+        dragon.position.y = lift * 280 + lift * lift * 260;
         const op = Math.max(0, 1 - Math.max(0, (tt - 1.25) / 0.95));  // 升空途中淡出，life 結束(2.2s)歸零
         bodyMat.opacity = 0.98 * op; spikeMat.opacity = 0.92 * op; headMat.opacity = op; whiskerMat.opacity = 0.85 * op;
-        dragon.rotation.y = tt * 0.4;
+        // 升空時加速自旋 → 龍「轉著(螺旋)」竄上去，不再像垂直滑上去。
+        dragon.rotation.y = tt * 0.5 + lift * 7;
       });
 
       // 4) 大字「真·昇龍霸」：砸點上方放大字板，punch-in 後上飄淡出。

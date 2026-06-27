@@ -1,386 +1,228 @@
 // @ts-nocheck
-// 格鬥家：拳腳連段、爆發。連環拳 / 上勾拳擊飛 / 格擋反擊。
+// 武僧（格鬥家）：聚氣→爆發。連環拳(掌風) / 聚氣(集氣球) / 不動明王(金身免傷) / 真·昇龍霸(化龍砸地·地裂)。
 import * as THREE from 'three';
 import { registerVfx } from '../../../render3d/vfx/registry.js';
-import { ring, pillar, burst, cone, sphereFlash, addShake, addFlash, ultimateBurst } from '../../../render3d/vfx/lib.js';
+import { ring, pillar, burst, cone, sphereFlash, slashBlade, addShake, addFlash } from '../../../render3d/vfx/lib.js';
 
-// 大絕招 — 真·昇龍霸：金色衝天氣旋
-// 大絕招 — 真·昇龍霸：神意·八卦真龍破
-registerVfx('fighter_ultimate', {
+// 大字字板（真·昇龍霸）：canvas 貼圖 → sprite，金底黑描邊。
+function makeTextSprite(text, colorStr) {
+  const cv = document.createElement('canvas');
+  cv.width = 640; cv.height = 200;
+  const g = cv.getContext('2d');
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.font = 'bold 120px "PingFang TC","Microsoft YaHei","Heiti TC",sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineJoin = 'round';
+  g.lineWidth = 16; g.strokeStyle = 'rgba(60,28,0,0.92)'; g.strokeText(text, cv.width / 2, cv.height / 2);
+  g.shadowColor = 'rgba(255,180,40,0.9)'; g.shadowBlur = 24;
+  g.fillStyle = colorStr; g.fillText(text, cv.width / 2, cv.height / 2);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.anisotropy = 4;
+  return tex;
+}
+
+// ── 連環拳（普攻）：俐落掌風／拳勁，不再是「噴方塊」。
+registerVfx('fighter_combo', {
   onCast(ctx, f, c) {
-    const THREE = ctx.THREE;
-    const R = f.range || 160;
-    const dirX = Math.cos(f.facing);
-    const dirZ = Math.sin(f.facing);
-    const hitPointX = Math.max(-600, Math.min(600, c.x + dirX * R));
-    const hitPointZ = Math.max(-400, Math.min(400, c.z + dirZ * R));
-    const hitPoint = { x: hitPointX, y: c.y, z: hitPointZ };
-
-    // 1. 金色八卦陣圖 (在腳下)
-    const baguaGroup = new THREE.Group();
-    baguaGroup.position.set(c.x, 1.2, c.z);
-    
-    const arrayGeos = [];
-    const arrayMats = [];
-
-    const baseGeo = new THREE.CircleGeometry(R * 0.8, 8); // 八邊形底盤
-    const baseMat = new THREE.MeshBasicMaterial({
-      color: 0xffe27a,
-      transparent: true,
-      opacity: 0.28,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.DoubleSide
+    const dx = Math.cos(f.facing), dz = Math.sin(f.facing);
+    const R = f.range || 95;
+    const hit = { x: c.x + dx * R * 0.7, z: c.z + dz * R * 0.7 };
+    // 揮擊弧光（手勢）
+    slashBlade(ctx, c, f.facing, { color: '#ffe9a8', len: R * 1.0, w: 7, swing: 1.3, life: 0.13 });
+    // 前方拳勁尖（細長錐、朝目標衝出後淡出）
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+    const wedge = new THREE.Mesh(new THREE.ConeGeometry(5, 22, 6), mat);
+    const g = new THREE.Group(); g.add(wedge); wedge.rotation.z = -Math.PI / 2; // 尖朝 +X
+    g.position.set(c.x, 16, c.z); g.rotation.y = -f.facing;
+    g.userData.geo = { dispose() { wedge.geometry.dispose(); } }; g.userData.mat = mat;
+    ctx.addTransient(g, 0.15, (m, t) => {
+      m.position.x = c.x + dx * R * (0.2 + t * 0.7);
+      m.position.z = c.z + dz * R * (0.2 + t * 0.7);
+      mat.opacity = 0.9 * (1 - t); m.scale.set(1 + t * 0.7, 1, 1);
     });
-    const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-    baseMesh.rotation.x = -Math.PI / 2;
-    baguaGroup.add(baseMesh);
-    arrayGeos.push(baseGeo);
-    arrayMats.push(baseMat);
-
-    const ringGeo = new THREE.RingGeometry(R * 0.76, R * 0.8, 8); // 八邊形外框
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: 0xffd700,
-      transparent: true,
-      opacity: 0.8,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide
-    });
-    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-    ringMesh.rotation.x = -Math.PI / 2;
-    baguaGroup.add(ringMesh);
-    arrayGeos.push(ringGeo);
-    arrayMats.push(ringMat);
-
-    // 在 8 個角放卦符
-    const trigramGeo = new THREE.BoxGeometry(R * 0.15, 0.4, R * 0.04);
-    const trigramMat = new THREE.MeshBasicMaterial({
-      color: 0xffd700,
-      transparent: true,
-      opacity: 0.9,
-      blending: THREE.AdditiveBlending
-    });
-    arrayGeos.push(trigramGeo);
-    arrayMats.push(trigramMat);
-
+    // 命中震波 + 火花
+    sphereFlash(ctx, hit, { color: '#fff3c8', from: 4, to: 26, life: 0.16, alpha: 0.95 });
+    ring(ctx, hit, { color: '#ffd76a', from: 2, to: 30, life: 0.2, y: 3, ease: true });
     for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const trigram = new THREE.Mesh(trigramGeo, trigramMat);
-      trigram.position.set(Math.cos(angle) * R * 0.65, 0.2, Math.sin(angle) * R * 0.65);
-      trigram.rotation.y = -angle;
-      baguaGroup.add(trigram);
-    }
-
-    baguaGroup.userData.geo = { dispose: () => arrayGeos.forEach(geo => geo.dispose()) };
-    baguaGroup.userData.mat = { dispose: () => arrayMats.forEach(mat => mat.dispose()) };
-
-    ctx.addTransient(baguaGroup, 0.75, (mesh, t) => {
-      mesh.rotation.y = t * Math.PI * 1.5;
-      const opacity = (1 - t) * 0.95;
-      baseMat.opacity = 0.28 * opacity;
-      ringMat.opacity = 0.8 * opacity;
-      trigramMat.opacity = 0.9 * opacity;
-    });
-
-    // 2. 「金色神龍」盤旋衝天 Mesh (在擊中點 hitPoint 產生)
-    const dragonGroup = new THREE.Group();
-    dragonGroup.position.set(hitPoint.x, hitPoint.y, hitPoint.z);
-
-    const dragonGeos = [];
-    const dragonMats = [];
-
-    const dragonRingGeo = new THREE.TorusGeometry(1, 0.25, 8, 24);
-    const dragonMat = new THREE.MeshBasicMaterial({
-      color: 0xffd700,
-      transparent: true,
-      opacity: 0.95,
-      blending: THREE.AdditiveBlending
-    });
-    dragonGeos.push(dragonRingGeo);
-    dragonMats.push(dragonMat);
-
-    const dragonRings = [];
-    for (let k = 0; k < 6; k++) {
-      const dm = new THREE.Mesh(dragonRingGeo, dragonMat);
-      dm.rotation.x = -Math.PI / 2;
-      dragonGroup.add(dm);
-      dragonRings.push(dm);
-    }
-
-    // 龍頭
-    const headGeo = new THREE.ConeGeometry(8, 22, 5);
-    const eyeGeo = new THREE.SphereGeometry(2, 8, 8);
-    const headMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xff8800, emissiveIntensity: 2.2 });
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    dragonGeos.push(headGeo, eyeGeo);
-    dragonMats.push(headMat, eyeMat);
-
-    const headMesh = new THREE.Mesh(headGeo, headMat);
-    headMesh.rotation.x = Math.PI / 2;
-    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-    leftEye.position.set(-3, 3, 5);
-    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-    rightEye.position.set(3, 3, 5);
-    
-    const headGroup = new THREE.Group();
-    headGroup.add(headMesh, leftEye, rightEye);
-    dragonGroup.add(headGroup);
-
-    dragonGroup.userData.geo = { dispose: () => dragonGeos.forEach(geo => geo.dispose()) };
-    dragonGroup.userData.mat = { dispose: () => dragonMats.forEach(mat => mat.dispose()) };
-
-    ctx.addTransient(dragonGroup, 0.85, (mesh, t) => {
-      dragonRings.forEach((rm, idx) => {
-        const segmentT = Math.max(0, t - idx * 0.08);
-        const angle = segmentT * Math.PI * 4;
-        const radius = Math.max(10, 24 * (1 - segmentT * 0.4));
-        rm.position.set(Math.cos(angle) * radius, segmentT * 260, Math.sin(angle) * radius);
-        rm.scale.setScalar(radius * 0.08);
-        rm.rotation.z += 0.08;
-      });
-
-      const headT = t;
-      const headAngle = headT * Math.PI * 4;
-      const headRadius = Math.max(10, 24 * (1 - headT * 0.4));
-      headGroup.position.set(Math.cos(headAngle) * headRadius, headT * 260 + 12, Math.sin(headAngle) * headRadius);
-      headGroup.rotation.y = -headAngle + Math.PI / 2;
-      headGroup.scale.setScalar(1.2 * (1 - headT * 0.3));
-
-      dragonMat.opacity = Math.max(0, (1 - t) * 0.95);
-      headMat.opacity = Math.max(0, (1 - t) * 0.95);
-    });
-
-    // 3. 擊中點的金色巨大拳印
-    ctx.sceneMgr.addShake(22);
-    ctx.sceneMgr.addFlash(0.38, '#ffe27a');
-    
-    ring(ctx, hitPoint, { color: '#ffe27a', from: 10, to: R * 1.4, life: 0.48, y: 4, ease: true });
-    sphereFlash(ctx, hitPoint, { color: '#ffffff', from: 8, to: R * 0.6, life: 0.28, alpha: 0.95 });
-
-    const fistGroup = new THREE.Group();
-    fistGroup.position.set(hitPoint.x, 8, hitPoint.z);
-    
-    const fistGeos = [];
-    const fistMats = [];
-
-    const palmGeo = new THREE.BoxGeometry(R * 0.3, R * 0.06, R * 0.3);
-    const palmMat = new THREE.MeshBasicMaterial({
-      color: 0xffd700,
-      transparent: true,
-      opacity: 0.88,
-      blending: THREE.AdditiveBlending
-    });
-    const palm = new THREE.Mesh(palmGeo, palmMat);
-    fistGroup.add(palm);
-    fistGeos.push(palmGeo);
-    fistMats.push(palmMat);
-
-    const fingerGeo = new THREE.BoxGeometry(R * 0.06, R * 0.06, R * 0.16);
-    fistGeos.push(fingerGeo);
-    
-    for (let i = 0; i < 4; i++) {
-      const finger = new THREE.Mesh(fingerGeo, palmMat);
-      finger.position.set(-R * 0.12 + i * R * 0.08, 0, R * 0.22);
-      fistGroup.add(finger);
-    }
-
-    fistGroup.userData.geo = { dispose: () => fistGeos.forEach(geo => geo.dispose()) };
-    fistGroup.userData.mat = { dispose: () => fistMats.forEach(mat => mat.dispose()) };
-
-    ctx.addTransient(fistGroup, 0.6, (mesh, t) => {
-      mesh.position.y = 8 + t * 240;
-      mesh.scale.setScalar(1 + t * 0.6);
-      palmMat.opacity = (1 - t) * 0.88;
-    });
-
-    for (let i = 0; i < 50; i++) {
-      const a = Math.random() * Math.PI * 2, spd = 240 + Math.random() * 240;
-      ctx.particles.spawn({
-        x: hitPoint.x, y: 5, z: hitPoint.z,
-        vx: Math.cos(a) * spd, vy: 180 + Math.random() * 220, vz: Math.sin(a) * spd,
-        gravity: 240, drag: 1.1, life: 0.65 + Math.random() * 0.45,
-        size: 4 + Math.random() * 4.5, color: '#ffe27a', fade: true
-      });
+      const a = f.facing + (Math.random() - 0.5) * 1.2, spd = 120 + Math.random() * 120;
+      ctx.particles.spawn({ x: hit.x, y: 14, z: hit.z, vx: Math.cos(a) * spd, vy: 40 + Math.random() * 60, vz: Math.sin(a) * spd, gravity: 240, drag: 2, life: 0.3, size: 3, color: '#ffe9a8', fade: true });
     }
   },
 });
 
-registerVfx('fighter_combo', {
+// ── 聚氣（K）：向心匯聚的金氣凝成一顆氣球。chi 越高、爆光越亮。
+registerVfx('fighter_qi', {
   onCast(ctx, f, c) {
-    const THREE = ctx.THREE;
-    const dx = Math.cos(f.facing);
-    const dy = Math.sin(f.facing);
-    const R = f.range || 95;
-
-    // Helper to build a fist
-    const createFist = (colorHex) => {
-      const g = new THREE.Group();
-      const mat = new THREE.MeshStandardMaterial({
-        color: colorHex,
-        emissive: colorHex,
-        emissiveIntensity: 1.8,
-        transparent: true,
-        opacity: 0.95
-      });
-      const palmGeo = new THREE.BoxGeometry(6, 5, 6);
-      const knuckleGeo = new THREE.BoxGeometry(2, 4.5, 5);
-      const palm = new THREE.Mesh(palmGeo, mat);
-      const knuckle = new THREE.Mesh(knuckleGeo, mat);
-      knuckle.position.set(3.5, 0, 0);
-      g.add(palm, knuckle);
-
-      g.userData.geo = { dispose: () => { palmGeo.dispose(); knuckleGeo.dispose(); } };
-      g.userData.mat = mat;
-      return g;
-    };
-
-    // Spawn 3 rapid punches with staggered delays
-    const numPunches = 3;
-    const life = 0.35;
-    
-    for (let i = 0; i < numPunches; i++) {
-      const delay = i * 0.08;
-      const fist = createFist(0xffd700);
-      fist.visible = false;
-      
-      const sideOffset = (i === 1 ? -6 : (i === 2 ? 6 : 0));
-      const perpX = -dy * sideOffset;
-      const perpZ = dx * sideOffset;
-
-      ctx.addTransient(fist, life, (mesh, t) => {
-        const elapsed = t * life;
-        if (elapsed < delay) {
-          mesh.visible = false;
-        } else {
-          mesh.visible = true;
-          const localT = (elapsed - delay) / (life - delay);
-          const currentDist = localT * R;
-          mesh.position.set(
-            c.x + dx * currentDist + perpX,
-            c.y + 12 + Math.sin(localT * Math.PI) * 5,
-            c.z + dy * currentDist + perpZ
-          );
-          mesh.rotation.y = -f.facing;
-          mesh.scale.setScalar(0.75 + localT * 0.5);
-          mesh.userData.mat.opacity = 0.95 * (1 - localT);
-        }
-      });
+    const chi = f.chi || 1;
+    addFlash(ctx, 0.08, '#ffe9a8');
+    sphereFlash(ctx, c, { color: '#fff3c8', from: 6, to: 20 + chi * 3, life: 0.26, alpha: 0.9 });
+    ring(ctx, c, { color: '#ffd76a', from: 38, to: 6, life: 0.3, y: 5 });            // 內縮環＝聚氣
+    pillar(ctx, c, { color: '#ffe27a', h: 56 + chi * 10, r: 9, taper: 0.4, life: 0.4, alpha: 0.6, grow: 0.3 });
+    if (f.full) addFlash(ctx, 0.12, '#ffd700');                                       // 滿氣額外亮一下
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2, rr = 48 + Math.random() * 22;
+      ctx.particles.spawn({ x: c.x + Math.cos(a) * rr, y: 8 + Math.random() * 34, z: c.z + Math.sin(a) * rr, vx: -Math.cos(a) * 150, vy: 24, vz: -Math.sin(a) * 150, gravity: -36, drag: 2.6, life: 0.4, size: 3.4, color: '#ffe9a8', fade: true });
     }
-
-    // Standard splash
-    sphereFlash(ctx, c, { color: '#f7dc6f', from: 4, to: 28, life: 0.18, alpha: 0.95 });
-    ring(ctx, c, { color: '#ffe27a', from: 2, to: 24, life: 0.2, y: 3 });
-  }
+  },
 });
 
-registerVfx('fighter_uppercut', {
+// ── 不動明王（L）：金身護體。金色穹頂 + 旋轉光環 + 莊嚴金光，持續約增益時間。
+registerVfx('fighter_steelbody', {
   onCast(ctx, f, c) {
-    const THREE = ctx.THREE;
+    addFlash(ctx, 0.2, '#ffd76a');
+    addShake(ctx, 6);
+    ring(ctx, c, { color: '#ffd700', from: 6, to: 70, life: 0.5, y: 3, ease: true });
+    sphereFlash(ctx, c, { color: '#fff3c8', from: 8, to: 46, life: 0.3, alpha: 0.95 });
 
-    // Golden heavy fist mesh
-    const fistGroup = new THREE.Group();
-    fistGroup.position.set(c.x, c.y, c.z);
-    fistGroup.rotation.y = -f.facing;
-
-    const palmGeo = new THREE.BoxGeometry(10, 8, 10);
-    const knuckleGeo = new THREE.BoxGeometry(3.5, 7, 8.5);
-    const palmMat = new THREE.MeshStandardMaterial({
-      color: 0xffd700,
-      emissive: 0xff9900,
-      emissiveIntensity: 2.2,
-      transparent: true,
-      opacity: 0.95
+    const DUR = 2.0;
+    const g = new THREE.Group(); g.position.set(c.x, 0, c.z);
+    const domeMat = new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(34, 20, 14), domeMat); dome.position.y = 26; dome.scale.y = 1.25;
+    const haloMat = new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(20, 1.4, 8, 28), haloMat); halo.rotation.x = Math.PI / 2; halo.position.y = 46; // 頭頂佛光
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const footRing = new THREE.Mesh(new THREE.RingGeometry(28, 34, 28), ringMat); footRing.rotation.x = -Math.PI / 2; footRing.position.y = 2;
+    g.add(dome, halo, footRing);
+    g.userData.geo = { dispose() { dome.geometry.dispose(); halo.geometry.dispose(); footRing.geometry.dispose(); } };
+    g.userData.mat = { dispose() { domeMat.dispose(); haloMat.dispose(); ringMat.dispose(); } };
+    ctx.addTransient(g, DUR, (m, t) => {
+      const fade = t < 0.85 ? 1 : (1 - t) / 0.15;
+      const pulse = 0.85 + 0.15 * Math.sin(t * DUR * 8);
+      domeMat.opacity = 0.16 * fade * pulse;
+      haloMat.opacity = 0.85 * fade;
+      ringMat.opacity = 0.7 * fade * pulse;
+      halo.rotation.z += 0.05;
+      footRing.rotation.z -= 0.04;
+      m.position.y = Math.sin(t * DUR * 5) * 1.0;
     });
-
-    const palm = new THREE.Mesh(palmGeo, palmMat);
-    const knuckle = new THREE.Mesh(knuckleGeo, palmMat);
-    knuckle.position.set(5.5, 0, 0);
-    fistGroup.add(palm, knuckle);
-
-    // Point the fist straight UP locally!
-    fistGroup.rotation.z = Math.PI / 2;
-
-    fistGroup.userData.geo = { dispose: () => { palmGeo.dispose(); knuckleGeo.dispose(); } };
-    fistGroup.userData.mat = palmMat;
-
-    ctx.addTransient(fistGroup, 0.45, (mesh, t) => {
-      // Thrust upwards
-      mesh.position.y = c.y + t * 58;
-      mesh.rotation.x = t * Math.PI * 3; // Spin around upward axis
-      
-      const scale = 2.0 * Math.sin(t * Math.PI * 0.5);
-      mesh.scale.set(scale, scale, scale);
-      palmMat.opacity = 0.95 * (1 - t);
-    });
-
-    // High upward light pillar and rings
-    pillar(ctx, c, { color: '#f9e79f', h: 170, r: 24, taper: 0.35, life: 0.5, alpha: 0.75, grow: 0.4 });
-    sphereFlash(ctx, c, { color: '#fff4c2', from: 6, to: 55, life: 0.2, alpha: 0.9 });
-    ring(ctx, c, { color: '#f1c40f', from: 6, to: 95, life: 0.36, y: 3, ease: true });
-
-    // Rising particles
-    for (let i = 0; i < 34; i++) {
-      const a = Math.random() * Math.PI * 2, rr = Math.random() * 26;
-      ctx.particles.spawn({
-        x: c.x + Math.cos(a) * rr, y: 2, z: c.z + Math.sin(a) * rr,
-        vx: Math.cos(a) * 55, vy: 300 + Math.random() * 250, vz: Math.sin(a) * 55,
-        gravity: 220, drag: 1.15, life: 0.65, size: 4.5, color: '#f9e79f', fade: true
-      });
-    }
-
-    addShake(ctx, 9);
-  }
+  },
 });
 
-registerVfx('fighter_counter', {
+// ── 真·昇龍霸（大招·施放氣爆）：施法者腳下金色氣勁爆發＋衝天前兆（由 casting.ts 自動觸發於施法者）。
+registerVfx('fighter_ultimate', {
   onCast(ctx, f, c) {
-    const THREE = ctx.THREE;
-    const g = new THREE.Group();
-    g.position.set(c.x, 20, c.z);
-    g.rotation.y = -f.facing; // face facing direction
-
-    const geos = [];
-    const mats = [];
-
-    const outerGeo = new THREE.RingGeometry(18, 20, 8);
-    const innerGeo = new THREE.RingGeometry(13, 15, 8);
-    geos.push(outerGeo, innerGeo);
-
-    const shieldMat = new THREE.MeshBasicMaterial({
-      color: 0xffd700,
-      transparent: true,
-      opacity: 0.9,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide
-    });
-    mats.push(shieldMat);
-
-    const outerMesh = new THREE.Mesh(outerGeo, shieldMat);
-    const innerMesh = new THREE.Mesh(innerGeo, shieldMat);
-    g.add(outerMesh, innerMesh);
-
-    // Add small trigram boxes on the ring
-    const boxGeo = new THREE.BoxGeometry(3, 1, 0.8);
-    geos.push(boxGeo);
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const trigram = new THREE.Mesh(boxGeo, shieldMat);
-      trigram.position.set(Math.cos(angle) * 16.5, Math.sin(angle) * 16.5, 0);
-      trigram.rotation.z = angle;
-      g.add(trigram);
+    addShake(ctx, 10);
+    addFlash(ctx, 0.22, '#ffe27a');
+    ring(ctx, c, { color: '#ffd700', from: 8, to: 120, life: 0.45, y: 3, ease: true });
+    sphereFlash(ctx, c, { color: '#fff7da', from: 8, to: 56, life: 0.3, alpha: 0.95 });
+    pillar(ctx, c, { color: '#ffe27a', h: 150, r: 18, taper: 0.3, life: 0.5, alpha: 0.7, grow: 0.4 });
+    for (let i = 0; i < 28; i++) {
+      const a = Math.random() * Math.PI * 2, rr = Math.random() * 24;
+      ctx.particles.spawn({ x: c.x + Math.cos(a) * rr, y: 3, z: c.z + Math.sin(a) * rr, vx: Math.cos(a) * 60, vy: 280 + Math.random() * 220, vz: Math.sin(a) * 60, gravity: 220, drag: 1.2, life: 0.6, size: 4.5, color: '#ffe9a8', fade: true });
     }
+  },
+});
 
-    g.userData.geo = { dispose: () => geos.forEach(geo => geo.dispose()) };
-    g.userData.mat = shieldMat;
+// ── 真·昇龍霸（大招·落地龍）：飛撲落地點生成。delay≈leap dur 後爆發：砸地震波＋地裂＋金龍衝天＋大字。
+//   氣球(chi)越多 → 龍越大、地裂越多越長、字越大。由 risingdragon handler 於落地點送出。
+registerVfx('fighter_dragon', {
+  onCast(ctx, f, c) {
+    const chi = Math.max(0, Math.min(5, f.chi || 0));
+    const dur = f.dur || 0.5;                  // 飛撲時間 → 延後到落地才爆
+    const scale = 1 + chi * 0.16;              // 氣球越多越大
+    const life = f.life || 1.5;
 
-    ctx.addTransient(g, 0.55, (mesh, t) => {
-      mesh.scale.setScalar(Math.min(1.2, t * 6) * (1 - t * 0.15));
-      mesh.rotation.z = t * Math.PI * 2.5; // spin it!
-      shieldMat.opacity = 0.9 * (1 - t);
+    // 落地前：地面預警圈（標出砸點），落地瞬間消失。
+    const warnMat = new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const warn = new THREE.Mesh(new THREE.RingGeometry(54 * scale, 60 * scale, 36), warnMat);
+    warn.rotation.x = -Math.PI / 2; warn.position.set(c.x, 2, c.z);
+    warn.userData.geo = { dispose() { warn.geometry.dispose(); } }; warn.userData.mat = warnMat;
+    ctx.addTransient(warn, dur, (m, t) => { warnMat.opacity = 0.5 * Math.sin(t * Math.PI) * (0.6 + 0.4 * Math.sin(t * 30)); });
+
+    // 落地爆發（單發排程）：用一個隱形計時器在 age>=dur 觸發。
+    const timer = new THREE.Object3D();
+    let fired = false;
+    timer.userData.geo = { dispose() {} }; timer.userData.mat = { dispose() {} };
+    ctx.addTransient(timer, life, (m, t) => {
+      const age = t * life;
+      if (fired || age < dur) return;
+      fired = true;
+      const hit = { x: c.x, y: c.y, z: c.z };
+
+      // 1) 砸地：鏡頭重震 + 閃白 + 雙層震環 + 白光球
+      addShake(ctx, 20 + chi * 2);
+      addFlash(ctx, 0.4, '#fff2c0');
+      ring(ctx, hit, { color: '#ffe27a', from: 12, to: (150 + chi * 18) * 1.0, life: 0.5, y: 4, ease: true });
+      ring(ctx, hit, { color: '#ffd700', from: 8, to: 90 + chi * 10, life: 0.36, y: 8 });
+      sphereFlash(ctx, hit, { color: '#ffffff', from: 10, to: 70, life: 0.26, alpha: 0.98 });
+
+      // 2) 地裂：自砸點向外輻射的發光裂縫（數量/長度隨 chi）。
+      const cracks = 6 + chi * 2;
+      const crackMat = new THREE.MeshBasicMaterial({ color: 0xffb734, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+      const crackGroup = new THREE.Group(); crackGroup.position.set(hit.x, 1.5, hit.z);
+      const crackGeo = new THREE.PlaneGeometry(1, 1);
+      const segs = [];
+      for (let i = 0; i < cracks; i++) {
+        const ang = (i / cracks) * Math.PI * 2 + (i % 2) * 0.25;
+        const len = (90 + Math.random() * 70) * scale;
+        const seg = new THREE.Mesh(crackGeo, crackMat);
+        seg.rotation.x = -Math.PI / 2; seg.rotation.z = -ang;
+        seg.position.set(Math.cos(ang) * len * 0.5, 0, Math.sin(ang) * len * 0.5);
+        seg.scale.set(len, 1, 1);
+        seg.userData.w = 3 + Math.random() * 3;
+        crackGroup.add(seg); segs.push(seg);
+      }
+      crackGroup.userData.geo = { dispose() { crackGeo.dispose(); } };
+      crackGroup.userData.mat = crackMat;
+      ctx.addTransient(crackGroup, 1.1, (mm, tt) => {
+        const grow = Math.min(1, tt / 0.18);
+        for (const s of segs) s.scale.z = s.userData.w * grow;
+        crackMat.opacity = 0.95 * (1 - Math.max(0, (tt - 0.5) / 0.5));
+      });
+
+      // 3) 金龍：自砸點盤旋衝天（鱗段 + 龍頭），chi 越多越粗壯。
+      const dragon = new THREE.Group(); dragon.position.set(hit.x, 0, hit.z);
+      const segMat = new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+      const segGeo = new THREE.TorusGeometry(1, 0.34, 8, 18);
+      const N = 9;
+      const rings = [];
+      for (let k = 0; k < N; k++) { const rm = new THREE.Mesh(segGeo, segMat); rm.rotation.x = -Math.PI / 2; dragon.add(rm); rings.push(rm); }
+      const headMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xff8a00, emissiveIntensity: 2.4, transparent: true, opacity: 0.98 });
+      const headGeo = new THREE.ConeGeometry(9 * scale, 26 * scale, 6);
+      const head = new THREE.Mesh(headGeo, headMat); head.rotation.x = Math.PI / 2;
+      const hornGeo = new THREE.ConeGeometry(1.6, 10, 5);
+      const horns = new THREE.Group();
+      for (const sx of [-1, 1]) { const h = new THREE.Mesh(hornGeo, headMat); h.position.set(sx * 4, 4, -6); h.rotation.x = -0.5; horns.add(h); }
+      const headG = new THREE.Group(); headG.add(head, horns); dragon.add(headG);
+      dragon.userData.geo = { dispose() { segGeo.dispose(); headGeo.dispose(); hornGeo.dispose(); } };
+      dragon.userData.mat = { dispose() { segMat.dispose(); headMat.dispose(); } };
+      const rise = 300 + chi * 26;
+      ctx.addTransient(dragon, 1.4, (mm, tt) => {
+        rings.forEach((rm, idx) => {
+          const st = Math.max(0, tt - idx * 0.06);
+          const ang = st * Math.PI * 4;
+          const rad = (26 - idx * 1.4) * scale;
+          rm.position.set(Math.cos(ang) * rad, st * rise, Math.sin(ang) * rad);
+          rm.scale.setScalar((6 - idx * 0.3) * scale);
+        });
+        const ang = tt * Math.PI * 4;
+        const rad = 26 * scale;
+        headG.position.set(Math.cos(ang) * rad, tt * rise + 16, Math.sin(ang) * rad);
+        headG.rotation.y = -ang;
+        headG.scale.setScalar((1.3 - tt * 0.3) * scale);
+        const op = Math.max(0, 1 - Math.max(0, (tt - 0.55) / 0.45));
+        segMat.opacity = 0.95 * op; headMat.opacity = 0.98 * op;
+      });
+
+      // 4) 大字「真·昇龍霸」：砸點上方放大字板，punch-in 後上飄淡出。
+      const tex = makeTextSprite('真·昇龍霸', '#ffe14a');
+      const spMat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false, depthTest: false });
+      const sprite = new THREE.Sprite(spMat); sprite.position.set(hit.x, 64, hit.z);
+      const baseW = 150, baseH = 47;
+      sprite.userData.geo = { dispose() { tex.dispose(); } }; sprite.userData.mat = spMat;
+      ctx.addTransient(sprite, 1.6, (mm, tt) => {
+        const pop = tt < 0.12 ? tt / 0.12 : 1;          // 彈入
+        const s = (0.7 + pop * 0.5);
+        sprite.scale.set(baseW * s, baseH * s, 1);
+        sprite.position.y = 64 + tt * 26;
+        spMat.opacity = tt < 0.74 ? Math.min(1, pop) : (1 - tt) / 0.26;
+      });
+
+      // 5) 碎石塵爆
+      for (let i = 0; i < 46 + chi * 6; i++) {
+        const a = Math.random() * Math.PI * 2, spd = 200 + Math.random() * 260;
+        ctx.particles.spawn({ x: hit.x, y: 4, z: hit.z, vx: Math.cos(a) * spd, vy: 120 + Math.random() * 240, vz: Math.sin(a) * spd, gravity: 360, drag: 1.1, life: 0.6 + Math.random() * 0.5, size: 4 + Math.random() * 4, color: i % 3 ? '#ffe27a' : '#c98a2e', fade: true });
+      }
     });
-
-    ring(ctx, c, { color: '#f4d03f', from: 8, to: 56, life: 0.36, y: 3 });
-    burst(ctx, c, { color: ['#f4d03f', '#ffffff'], count: 14, speed: 150, up: 50, flat: true, life: 0.4 });
-    addFlash(ctx, 0.14, '#f4d03f');
-  }
+  },
 });

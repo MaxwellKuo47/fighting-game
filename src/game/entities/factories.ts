@@ -28,6 +28,7 @@ export function makePlayer(id: EntityId, name: string, charId: string | number, 
     barrage: null,
     still: 0,
     combo: 0, comboTimer: 0,
+    chi: 0, chiGainCd: 0, // 格鬥家：氣球(0–5) 與「命中集氣」節流計時
     fury: 0, furyIdle: 0,
     iaiTimer: 0,
     suppressTarget: null, suppressStacks: 0,

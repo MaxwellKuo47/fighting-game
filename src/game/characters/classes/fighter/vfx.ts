@@ -102,6 +102,8 @@ registerVfx('fighter_steelbody', {
     g.userData.geo = { dispose() { shell.geometry.dispose(); shell2.geometry.dispose(); halo.geometry.dispose(); footRing.geometry.dispose(); glyphGeo.dispose(); } };
     g.userData.mat = { dispose() { shellMat.dispose(); shell2Mat.dispose(); haloMat.dispose(); glyphMat.dispose(); } };
     let frame = 0;
+    const ownerId = f.owner;                    // 跟隨施法者（金身會跟著走，不再留在原地）
+    const getPos = ctx.getEntityPos;
     ctx.addTransient(g, DUR, (m, t) => {
       const fade = t < 0.85 ? 1 : (1 - t) / 0.15;
       const pulse = 0.8 + 0.2 * Math.sin(t * DUR * 9);
@@ -112,12 +114,15 @@ registerVfx('fighter_steelbody', {
       halo.rotation.z += 0.05;
       footRing.rotation.z -= 0.03;
       for (const gm of glyphs) gm.rotation.y += 0.04;
-      m.position.y = Math.sin(t * DUR * 5) * 0.8;
-      // 火焰光背：持續上竄的金焰（負重力＝往上舔）
+      // 跟隨施法者即時位置（取不到就留在施放點）
+      const lp = getPos ? getPos(ownerId) : null;
+      const cx = lp ? lp.x : c.x, cz = lp ? lp.z : c.z;
+      m.position.set(cx, Math.sin(t * DUR * 5) * 0.8, cz);
+      // 火焰光背：持續上竄的金焰（負重力＝往上舔），跟著本體
       if ((frame++ % 2 === 0) && t < 0.9) {
         for (let k = 0; k < 3; k++) {
           const a = Math.random() * Math.PI * 2, rr = 22 + Math.random() * 14;
-          ctx.particles.spawn({ x: c.x + Math.cos(a) * rr, y: 4, z: c.z + Math.sin(a) * rr, vx: Math.cos(a) * 10, vy: 130 + Math.random() * 130, vz: Math.sin(a) * 10, gravity: -30, drag: 1.6, life: 0.5 + Math.random() * 0.3, size: 4 + Math.random() * 3, color: k % 2 ? '#ffb43a' : '#ffe27a', fade: true });
+          ctx.particles.spawn({ x: cx + Math.cos(a) * rr, y: 4, z: cz + Math.sin(a) * rr, vx: Math.cos(a) * 10, vy: 130 + Math.random() * 130, vz: Math.sin(a) * 10, gravity: -30, drag: 1.6, life: 0.5 + Math.random() * 0.3, size: 4 + Math.random() * 3, color: k % 2 ? '#ffb43a' : '#ffe27a', fade: true });
         }
       }
     });
@@ -198,8 +203,8 @@ registerVfx('fighter_dragon', {
 
       // 3) 金龍：自砸點化龍盤旋衝天 —— TubeGeometry 連續蛇身（沿螺旋曲線、由地竄升揭示）
       //    + 背鬃 + 細緻龍頭（吻/角/鬚/眼）。chi 越多龍越粗越長。
-      const rise = 300 + chi * 30;
-      const coils = 2.6, SEG = 48;
+      const rise = 200 + chi * 16;        // 降低竄升高度，避免龍頭太快衝出畫面
+      const coils = 3.0, SEG = 48;        // 多繞一圈＝更像蛇身、較不垂直逃出
       const pts = [];
       for (let i = 0; i <= SEG; i++) {
         const u = i / SEG, a = u * Math.PI * 2 * coils, rad = (32 - u * 16) * scale;
@@ -240,18 +245,19 @@ registerVfx('fighter_dragon', {
       dragon.userData.mat = { dispose() { bodyMat.dispose(); spikeMat.dispose(); headMat.dispose(); eyeMat.dispose(); whiskerMat.dispose(); } };
       const idxCount = tubeGeo.index ? tubeGeo.index.count : 0;
       const _tan = new THREE.Vector3(), _hp = new THREE.Vector3();
-      ctx.addTransient(dragon, 1.5, (mm, tt) => {
-        const prog = Math.min(1, tt / 0.5);                       // 0.5s 竄升完成
+      const headScale = 1.5;                                      // 龍頭放大
+      ctx.addTransient(dragon, 2.6, (mm, tt) => {
+        const prog = Math.min(1, tt / 0.95);                      // 放慢竄升（~0.95s）
         if (idxCount) tubeGeo.setDrawRange(0, Math.max(0, Math.floor(idxCount * prog)));
         const hu = Math.min(0.999, prog * 0.999);
         curve.getPoint(hu, _hp); curve.getTangent(hu, _tan);
         headG.position.copy(_hp);
         headG.lookAt(_hp.x + _tan.x, _hp.y + _tan.y, _hp.z + _tan.z);
-        headG.scale.setScalar(prog > 0.05 ? 1 : 0.001);
+        headG.scale.setScalar(prog > 0.05 ? headScale : 0.001);
         for (const sp of spikes) sp.visible = sp.userData.u <= prog;
-        const op = Math.max(0, 1 - Math.max(0, (tt - 0.62) / 0.38));
+        const op = Math.max(0, 1 - Math.max(0, (tt - 1.8) / 0.8));  // 停留更久再淡出
         bodyMat.opacity = 0.98 * op; spikeMat.opacity = 0.92 * op; headMat.opacity = op; whiskerMat.opacity = 0.85 * op;
-        dragon.rotation.y = tt * 0.5;
+        dragon.rotation.y = tt * 0.4;
       });
 
       // 4) 大字「真·昇龍霸」：砸點上方放大字板，punch-in 後上飄淡出。

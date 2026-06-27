@@ -55,7 +55,7 @@ export function createFighterChiLayer(scene) {
         mat.color.lerp(TMP_COLOR.setHex(full ? 0xff3320 : 0xffd24a), Math.min(1, dt * 8));
         const m = e.spheres[i];
         const ang = phase * (full ? 2.4 : 1.6) + (i / 5) * Math.PI * 2;   // 滿氣旋更快
-        m.position.set(Math.cos(ang) * 27, 36 + Math.sin(phase * 3 + i) * 2, Math.sin(ang) * 27);
+        m.position.set(Math.cos(ang) * 42, 34 + Math.sin(phase * 3 + i) * 2.5, Math.sin(ang) * 42); // 離身體更遠
         const pulse = 0.85 + 0.15 * Math.sin(phase * (full ? 9 : 6) + i);
         m.scale.setScalar((active ? (full ? 1.2 : 1) : 0.55) * pulse);
         m.visible = mat.opacity > 0.02;

@@ -26,6 +26,6 @@ coverage/
 .DS_Store
 
 
-.agents/skills
+.agents
 .codebase-memory
 local_docs

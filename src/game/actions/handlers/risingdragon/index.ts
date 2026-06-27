@@ -56,7 +56,11 @@ export function risingdragon(ctx: ActionContext) {
   //    故這支落地龍特效用獨立 vfx id，避免與施放氣爆重複觸發。帶 chi → 龍/地裂越多氣球越大；
   //    帶 dur → VFX 自行延後到落地瞬間才爆發。）
   void silent;
-  addFx(state, { type: 'ultimate', x: tx, y: ty, facing: caster.facing, color: action.color, life: 1.5, vfx: 'fighter_dragon', chi, dur: action.dur || 0.5 });
+  // 龍以「目標中心」為環繞圓心、帶 targetR（目標體型）→ 圍著目標升天（打大王也繞得住，而非從身上長出來）。
+  const dragonX = best ? best.x : tx;
+  const dragonY = best ? best.y : ty;
+  const targetR = best ? (best.hitR || PLAYER_RADIUS) : PLAYER_RADIUS;
+  addFx(state, { type: 'ultimate', x: dragonX, y: dragonY, facing: caster.facing, color: action.color, life: 1.5, vfx: 'fighter_dragon', chi, dur: action.dur || 0.5, targetR });
 }
 
 export const handlers = { risingdragon };

@@ -169,11 +169,12 @@ registerVfx('fighter_dragon', {
       if (fired || age < dur) return;
       fired = true;
       const hit = { x: c.x, y: c.y, z: c.z };
+      const encR = Math.max(34, (f.targetR || 18) * 1.4) + chi * 4;   // 環繞半徑：依目標體型（打大王也繞得住）
 
       // 1) 砸地：鏡頭重震 + 閃白 + 雙層震環 + 白光球
       addShake(ctx, 20 + chi * 2);
       addFlash(ctx, 0.4, '#fff2c0');
-      ring(ctx, hit, { color: '#ffe27a', from: 12, to: (150 + chi * 18) * 1.0, life: 0.5, y: 4, ease: true });
+      ring(ctx, hit, { color: '#ffe27a', from: 12, to: Math.max(150, encR * 1.7) + chi * 8, life: 0.5, y: 4, ease: true });
       ring(ctx, hit, { color: '#ffd700', from: 8, to: 90 + chi * 10, life: 0.36, y: 8 });
       sphereFlash(ctx, hit, { color: '#ffffff', from: 10, to: 70, life: 0.26, alpha: 0.98 });
 
@@ -185,7 +186,7 @@ registerVfx('fighter_dragon', {
       const segs = [];
       for (let i = 0; i < cracks; i++) {
         const ang = (i / cracks) * Math.PI * 2 + (i % 2) * 0.25;
-        const len = (90 + Math.random() * 70) * scale;
+        const len = Math.max(96, encR * 1.25) + Math.random() * 60;   // 裂縫伸出目標外，打大王也露得出來
         const seg = new THREE.Mesh(crackGeo, crackMat);
         seg.rotation.x = -Math.PI / 2; seg.rotation.z = -ang;
         seg.position.set(Math.cos(ang) * len * 0.5, 0, Math.sin(ang) * len * 0.5);
@@ -203,11 +204,11 @@ registerVfx('fighter_dragon', {
 
       // 3) 金龍：自砸點化龍盤旋衝天 —— TubeGeometry 連續蛇身（沿螺旋曲線、由地竄升揭示）
       //    + 背鬃 + 細緻龍頭（吻/角/鬚/眼）。chi 越多龍越粗越長。
-      const rise = 200 + chi * 16;        // 降低竄升高度，避免龍頭太快衝出畫面
-      const coils = 3.0, SEG = 48;        // 多繞一圈＝更像蛇身、較不垂直逃出
+      const rise = Math.max(230, encR * 2.0) + chi * 16;  // 竄升高度隨環繞半徑（維持龍體修長、不變扁盤）
+      const coils = 3.0, SEG = 48;        // 多繞一圈＝更像蛇身
       const pts = [];
       for (let i = 0; i <= SEG; i++) {
-        const u = i / SEG, a = u * Math.PI * 2 * coils, rad = (32 - u * 16) * scale;
+        const u = i / SEG, a = u * Math.PI * 2 * coils, rad = encR * (1 - u * 0.42); // 自環繞半徑往上微收
         pts.push(new THREE.Vector3(Math.cos(a) * rad, u * rise, Math.sin(a) * rad));
       }
       const curve = new THREE.CatmullRomCurve3(pts);
@@ -244,18 +245,20 @@ registerVfx('fighter_dragon', {
       dragon.userData.geo = { dispose() { tubeGeo.dispose(); spikeGeo.dispose(); skullGeo.dispose(); snoutGeo.dispose(); jawGeo.dispose(); hornGeo.dispose(); eyeGeo.dispose(); whiskerGeo.dispose(); } };
       dragon.userData.mat = { dispose() { bodyMat.dispose(); spikeMat.dispose(); headMat.dispose(); eyeMat.dispose(); whiskerMat.dispose(); } };
       const idxCount = tubeGeo.index ? tubeGeo.index.count : 0;
-      const _tan = new THREE.Vector3(), _hp = new THREE.Vector3();
-      const headScale = 1.5;                                      // 龍頭放大
-      ctx.addTransient(dragon, 2.6, (mm, tt) => {
-        const prog = Math.min(1, tt / 0.95);                      // 放慢竄升（~0.95s）
+      const _tan = new THREE.Vector3(), _hp = new THREE.Vector3(), _q = new THREE.Quaternion();
+      const NEG_Z = new THREE.Vector3(0, 0, -1);
+      const headScale = 1.6;                                      // 龍頭放大
+      ctx.addTransient(dragon, 2.2, (mm, tt) => {
+        const prog = Math.min(1, tt / 0.62);                      // 加快竄升（~0.62s）
         if (idxCount) tubeGeo.setDrawRange(0, Math.max(0, Math.floor(idxCount * prog)));
         const hu = Math.min(0.999, prog * 0.999);
         curve.getPoint(hu, _hp); curve.getTangent(hu, _tan);
         headG.position.copy(_hp);
-        headG.lookAt(_hp.x + _tan.x, _hp.y + _tan.y, _hp.z + _tan.z);
+        _q.setFromUnitVectors(NEG_Z, _tan);                       // 龍頭 -Z(吻) 對齊局部切線 → 隨螺旋轉向（修「頭一直朝右」）
+        headG.quaternion.copy(_q);
         headG.scale.setScalar(prog > 0.05 ? headScale : 0.001);
         for (const sp of spikes) sp.visible = sp.userData.u <= prog;
-        const op = Math.max(0, 1 - Math.max(0, (tt - 1.8) / 0.8));  // 停留更久再淡出
+        const op = Math.max(0, 1 - Math.max(0, (tt - 1.4) / 0.8));  // 停留後淡出（配合 life 2.2）
         bodyMat.opacity = 0.98 * op; spikeMat.opacity = 0.92 * op; headMat.opacity = op; whiskerMat.opacity = 0.85 * op;
         dragon.rotation.y = tt * 0.4;
       });

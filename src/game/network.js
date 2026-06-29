@@ -34,13 +34,16 @@ export function createNetwork() {
   const snapConns = new Map(); // peerId -> 不可靠 DataConnection (房主用：state 快照,latest-wins)
   let hostConn = null;         // 加入者用：可靠通道
   let hostSnapConn = null;     // 加入者用：不可靠通道 (只收快照)
+  let epoch = 0;               // 連線世代：host/join 取憑證的 await 空檔被 destroy/重連作廢時，丟棄過期建立
 
   const handlers = {};
   for (const n of HANDLER_NAMES) handlers[n] = () => {};
 
   async function host(roomId) {
+    const myEpoch = ++epoch;
     isHost = true;
     const iceServers = await getIceServers();
+    if (myEpoch !== epoch) return; // 取憑證期間已被 destroy 或另一次 host/join → 別建出孤兒 peer
     peer = new Peer(roomId, { debug: 1, config: { iceServers } });
     peer.on('open', (id) => { selfId = id; handlers.onOpen(id); });
     peer.on('connection', (conn) => setupHostConn(conn));
@@ -63,8 +66,10 @@ export function createNetwork() {
   }
 
   async function join(roomId) {
+    const myEpoch = ++epoch;
     isHost = false;
     const iceServers = await getIceServers();
+    if (myEpoch !== epoch) return; // 同上：取憑證期間被作廢就放棄
     peer = new Peer(undefined, { debug: 1, config: { iceServers } });
     peer.on('open', (id) => {
       selfId = id;
@@ -102,6 +107,7 @@ export function createNetwork() {
   }
 
   function destroy() {
+    epoch++; // 作廢任何進行中的 host/join（避免其 await 結束後又建出 peer）
     try { if (peer) peer.destroy(); } catch (e) { /* ignore */ }
     peer = null; hostConn = null; hostSnapConn = null; conns.clear(); snapConns.clear();
   }

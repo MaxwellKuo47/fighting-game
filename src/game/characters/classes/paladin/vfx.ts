@@ -95,22 +95,22 @@ function buildCross(TH, opt = {}) {
 // ── 制裁之光：頭頂降臨的大天使（独立 addTransient，比 0.5s 傷害區存活更久供欣賞）─
 function spawnSanctionAngel(ctx, cx, cz) {
   const TH = ctx.THREE;
-  const angel = buildAngel(TH, { scale: 1.7 });
-  angel.position.set(cx, 150, cz);
-  // 自天使向下投射的聖光錐
-  const coneGeo = new TH.ConeGeometry(36, 130, 22, 1, true);
+  const angel = buildAngel(TH, { scale: 2.4 });
+  angel.position.set(cx, 190, cz);
+  // 自天使向下投射的聖光錐（放大覆蓋更大的聖域）
+  const coneGeo = new TH.ConeGeometry(58, 170, 24, 1, true);
   const coneMat = new TH.MeshBasicMaterial({ color: 0xfff2c0, transparent: true, opacity: 0.5, depthWrite: false, side: TH.DoubleSide, blending: TH.AdditiveBlending });
   coneMat.userData = { base: 0.5 };
-  const lightCone = new TH.Mesh(coneGeo, coneMat); lightCone.position.y = -66; angel.add(lightCone);
+  const lightCone = new TH.Mesh(coneGeo, coneMat); lightCone.position.y = -86; angel.add(lightCone);
   angel.userData.geos.push(coneGeo); angel.userData.mats.push(coneMat);
 
   const smooth = (k) => k * k * (3 - 2 * k);
-  ctx.addTransient(angel, 1.4, (grp, t) => {
+  ctx.addTransient(angel, 1.5, (grp, t) => {
     // 降臨 → 懸停 → 升空淡出
     let y;
-    if (t < 0.24) y = 150 - 54 * smooth(t / 0.24);
-    else if (t < 0.72) y = 96 + Math.sin((t - 0.24) * 7) * 2.5;
-    else y = 96 + 80 * ((t - 0.72) / 0.28) * ((t - 0.72) / 0.28);
+    if (t < 0.24) y = 190 - 68 * smooth(t / 0.24);
+    else if (t < 0.72) y = 122 + Math.sin((t - 0.24) * 7) * 3;
+    else y = 122 + 96 * ((t - 0.72) / 0.28) * ((t - 0.72) / 0.28);
     grp.position.y = y;
     const fadeIn = Math.min(1, t / 0.16);
     const fadeOut = t > 0.74 ? Math.max(0, 1 - (t - 0.74) / 0.26) : 1;
@@ -165,17 +165,17 @@ registerVfx('paladin_ultimate', {
     const angels = [];
     const NA = 7;
     for (let i = 0; i < NA; i++) {
-      const a = buildAngel(TH, { scale: 0.82 });
+      const a = buildAngel(TH, { scale: 1.05 });
       a.userData.ang = (i / NA) * Math.PI * 2;
       a.userData.orbR = R * (0.66 + (i % 2) * 0.2);
-      a.userData.yBase = 168 + (i % 3) * 26;
+      a.userData.yBase = 178 + (i % 3) * 28;
       g.add(a); angels.push(a);
     }
     // 聖十字環
     const crosses = [];
     const NX = 5;
     for (let i = 0; i < NX; i++) {
-      const cr = buildCross(TH, { scale: 1.5 });
+      const cr = buildCross(TH, { scale: 1.8 });
       cr.userData.ang = (i / NX) * Math.PI * 2 + 0.3;
       g.add(cr); crosses.push(cr);
     }
@@ -270,11 +270,6 @@ registerVfx('paladin_consecration', {
     }
     g.add(crackGrp);
 
-    // 中央聖焰柱（軟）
-    const plumeGeo = new TH.CylinderGeometry(R * 0.12, R * 0.22, 96, 16, 1, true);
-    const plumeMat = new TH.MeshBasicMaterial({ color: 0xffd152, transparent: true, opacity: 0.4, blending: TH.AdditiveBlending, depthWrite: false, side: TH.DoubleSide });
-    const plume = new TH.Mesh(plumeGeo, plumeMat); plume.position.y = 48; g.add(plume);
-
     let first = true, emit = 0;
     return {
       object3D: g,
@@ -291,14 +286,12 @@ registerVfx('paladin_consecration', {
         base.material.opacity = (0.22 + 0.12 * Math.sin(t * 5)) * fade;
         rim.material.opacity = (0.6 + 0.25 * Math.sin(t * 4 + 1)) * fade;
         crackMat.opacity = (0.55 + 0.28 * Math.sin(t * 7)) * fade;
-        plume.material.opacity = (0.3 + 0.16 * Math.sin(t * 11)) * fade;
-        plume.scale.x = plume.scale.z = 1 + 0.08 * Math.sin(t * 9);
-        // 持續上升火星
+        // 持續上升火星（壓低高度，維持地面焰感、不形成光柱）
         emit += dt;
         while (emit > 0.045 && fade > 0.2) {
           emit -= 0.045;
           const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * R * 0.92;
-          ctx.particles.spawn({ x: g.position.x + Math.cos(a) * rr, y: 2, z: g.position.z + Math.sin(a) * rr, vx: 0, vy: 70 + Math.random() * 80, vz: 0, gravity: -10, drag: 0.7, life: 0.55 + Math.random() * 0.35, size: 2.6 + Math.random() * 2.4, color: Math.random() < 0.45 ? WHITE : (Math.random() < 0.6 ? GOLD : '#ffb52e'), fade: true });
+          ctx.particles.spawn({ x: g.position.x + Math.cos(a) * rr, y: 2, z: g.position.z + Math.sin(a) * rr, vx: 0, vy: 40 + Math.random() * 55, vz: 0, gravity: 10, drag: 1.1, life: 0.4 + Math.random() * 0.3, size: 2.6 + Math.random() * 2.4, color: Math.random() < 0.45 ? WHITE : (Math.random() < 0.6 ? GOLD : '#ffb52e'), fade: true });
         }
       },
     };

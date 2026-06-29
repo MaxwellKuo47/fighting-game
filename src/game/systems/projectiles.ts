@@ -5,6 +5,7 @@ import { dealDamage } from '../entities/damage.ts';
 import { addFx } from '../entities/fx.ts';
 import { isEnemy, isAlly } from '../entities/team.ts';
 import { applyHeal } from '../entities/heal.ts';
+import { applyEffect } from '../entities/effects.ts';
 import { applyEffectFrom, bodyR } from '../actions/combat.ts';
 import { checkProjectileHit, damageDestructible } from './destructibles.ts';
 import type { GameState, Projectile, Player } from '../types';
@@ -119,6 +120,27 @@ export function updateProjectiles(state: GameState, dt: number) {
           }
         }
         if (projectile.effect) applyEffectFrom(state, o, projectile.effect, projectile.owner, projectile.srcSlot);
+        // 時厄術士 K/L：命中引爆目標時咒層數 —— 傷害／暈眩／緩速「全部隨層數放大」，可選擇是否消耗層數。
+        if (projectile.detonate) {
+          const det = projectile.detonate;
+          const hex = o.effects && o.effects.timehex;
+          const stacks = hex ? (hex.stacks || 0) : 0;
+          if (stacks > 0 && det.perStack) {
+            dealDamage(state, o, stacks * det.perStack, projectile.owner, { source: projectile.srcSlot });
+          }
+          // 暈眩：基礎 + 每層
+          const stunDur = (det.stun || 0) + (det.stunPerStack || 0) * stacks;
+          if (stunDur > 0) applyEffect(o, 'stun', { duration: stunDur });
+          // 緩速：時間隨層數變長、強度隨層數變強（factor 越低越慢）
+          if (det.slow) {
+            const slowDur = (det.slow.duration || 0) + (det.slowPerStack || 0) * stacks;
+            let factor = det.slow.factor != null ? det.slow.factor : 0.5;
+            if (det.slowFactorPerStack) factor = Math.max(det.slowFactorMin || 0.3, factor - det.slowFactorPerStack * stacks);
+            if (slowDur > 0) applyEffect(o, 'slow', { duration: slowDur, factor });
+          }
+          if (det.consume && hex) delete o.effects.timehex;
+          if (stacks > 0) addFx(state, { type: 'hit', x: o.x, y: o.y, color: projectile.color, life: 0.35, radius: 40 + stacks * 6, vfx: projectile.vfx });
+        }
         addFx(state, { type: 'hit', x: projectile.x, y: projectile.y, color: projectile.color, life: 0.2, radius: projectile.radius * 2, vfx: projectile.vfx });
         projectile.hit[o.id] = true;
         if (!projectile.pierce) {

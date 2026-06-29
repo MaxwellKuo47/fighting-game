@@ -7,8 +7,8 @@ import './action.ts';
 
 const data = {
     id: 109, round: 10, name: '另一個自己', subtitle: '終焉之神',
-    color: '#e8e8f0', shape: 'circle', maxHp: 12000, maxMana: 999, speed: 180,
-    baseHp: 12000,
+    color: '#e8e8f0', shape: 'circle', maxHp: 10000, maxMana: 999, speed: 180,
+    baseHp: 10000,
     deathVfx: 'boss_doppel_death',
     appearance: {
       size: '巨大 (約玩家 3 倍)，會隨階段變形',

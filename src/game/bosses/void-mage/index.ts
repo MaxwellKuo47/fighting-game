@@ -18,8 +18,8 @@ const scrambleAll = (duration = 4) => (state: any, boss: any) => {
 
 const data = {
     id: 107, round: 8, name: '虛空大魔導', subtitle: '時空扭曲者',
-    color: '#8e44ad', shape: 'circle', maxHp: 7500, maxMana: 999, speed: 150,
-    baseHp: 7500,
+    color: '#8e44ad', shape: 'circle', maxHp: 8500, maxMana: 999, speed: 150,
+    baseHp: 8500,
     deathVfx: 'boss_void_death',
     appearance: {
       size: '等身 (約玩家 1.8 倍)，漂浮',

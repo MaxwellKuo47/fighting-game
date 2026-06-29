@@ -7,7 +7,7 @@ import './action.ts';
 
 const data = {
   id: 110, round: 11, name: '奧羅克洛斯', subtitle: '萬古吞噬者',
-  color: '#d6b45f', shape: 'triangle', maxHp: 15000, baseHp: 15000, maxMana: 999, speed: 165,
+  color: '#d6b45f', shape: 'triangle', maxHp: 11500, baseHp: 11500, maxMana: 999, speed: 165,
   deathVfx: 'boss_time_dragon_death',
   appearance: {
     size: '巨大（約玩家 2.8 倍）',

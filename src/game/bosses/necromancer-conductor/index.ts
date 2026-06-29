@@ -7,8 +7,8 @@ import './action.ts';
 
 const data = {
     id: 105, round: 6, name: '死靈樂章', subtitle: '幽冥引路人',
-    color: '#7d5fff', shape: 'circle', maxHp: 6500, maxMana: 999, speed: 130,
-    baseHp: 6500,
+    color: '#7d5fff', shape: 'circle', maxHp: 7600, maxMana: 999, speed: 130,
+    baseHp: 7600,
     deathVfx: 'boss_necro_death',
     appearance: {
       size: '等身偏大 (約玩家 2 倍)，漂浮',

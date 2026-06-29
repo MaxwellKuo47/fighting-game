@@ -7,8 +7,8 @@ import { arena } from './arena.ts';
 
 const data = {
     id: 100, round: 1, name: '巨木傀儡', subtitle: '森林守護者',
-    color: '#6b8e23', shape: 'square', maxHp: 3500, maxMana: 999, speed: 110,
-    baseHp: 3500,
+    color: '#6b8e23', shape: 'square', maxHp: 5000, maxMana: 999, speed: 110,
+    baseHp: 5000,
     deathVfx: 'boss_golem_death',
     appearance: {
       size: '巨大 (約玩家 2.2 倍)',

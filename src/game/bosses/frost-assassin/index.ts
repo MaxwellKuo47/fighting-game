@@ -7,8 +7,8 @@ import './action.ts';
 
 const data = {
     id: 103, round: 4, name: '霜雪刺客', subtitle: '冰原幻影',
-    color: '#74e0ff', shape: 'triangle', maxHp: 5000, maxMana: 999, speed: 220,
-    baseHp: 5000,
+    color: '#74e0ff', shape: 'triangle', maxHp: 6400, maxMana: 999, speed: 220,
+    baseHp: 6400,
     deathVfx: 'boss_frost_death',
     appearance: {
       size: '等身 (約玩家 1.5 倍)，纖細靈巧',

@@ -7,8 +7,8 @@ import { arena } from './arena.ts';
 
 const data = {
     id: 101, round: 2, name: '劇毒飛蜥', subtitle: '沼澤潛伏者',
-    color: '#7fbf3f', shape: 'triangle', maxHp: 4500, maxMana: 999, speed: 175,
-    baseHp: 4500,
+    color: '#7fbf3f', shape: 'triangle', maxHp: 5200, maxMana: 999, speed: 175,
+    baseHp: 5200,
     deathVfx: 'boss_lizard_death',
     appearance: {
       size: '等身偏大 (約玩家 1.8 倍)，低伏敏捷',

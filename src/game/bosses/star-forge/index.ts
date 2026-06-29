@@ -6,7 +6,7 @@ import { loadVfx } from './vfx.ts';
 
 const data = {
   id: 111, round: 12, name: '阿斯特里昂', subtitle: '星爐鑄神',
-  color: '#e69a38', shape: 'square', maxHp: 17500, baseHp: 17500, maxMana: 999, speed: 165,
+  color: '#e69a38', shape: 'square', maxHp: 13000, baseHp: 13000, maxMana: 999, speed: 165,
   deathVfx: 'boss_star_forge_death',
   appearance: {
     size: '極巨大（約玩家 3.2 倍）',

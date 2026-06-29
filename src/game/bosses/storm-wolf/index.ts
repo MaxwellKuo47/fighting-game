@@ -6,8 +6,8 @@ import { loadVfx } from './vfx.ts';
 
 const data = {
     id: 106, round: 7, name: '風暴巨狼', subtitle: '狂暴之爪',
-    color: '#4a6fa5', shape: 'triangle', maxHp: 7000, maxMana: 999, speed: 250,
-    baseHp: 7000,
+    color: '#4a6fa5', shape: 'triangle', maxHp: 8000, maxMana: 999, speed: 250,
+    baseHp: 8000,
     deathVfx: 'boss_wolf_death',
     appearance: {
       size: '等身偏大 (約玩家 2.2 倍)，低伏蓄勢',

@@ -52,6 +52,8 @@ const hpScale = Math.max(0.35, n / 4); // n = 存活玩家數
 
 源碼：`src/game/bosses/lifecycle.ts:30`
 
+各 Boss 的 `maxHp` / `baseHp` 負責關卡進程曲線：前期補厚避免被秒殺，中後期壓低峰值但保留後期壓迫感。
+
 ### 1.4 難度曲線
 
 | 區段   | 回合   | 設計目標          | 核心機制                   | 玩家學到           |

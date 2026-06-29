@@ -22,8 +22,8 @@ const burnNearby = (radius = 280, dmg = 5, duration = 3) => (state: any, boss: a
 const data = {
     id: 102, round: 3, name: '熔岩鐵衛', subtitle: '烈焰重裝兵',
     lavaBurn: true, // HUD：被此 Boss 的燃燒灼傷時顯示「熔岩灼燒中」警示（取代硬編 charId）
-    color: '#c0392b', shape: 'square', maxHp: 5500, maxMana: 999, speed: 140,
-    baseHp: 5500,
+    color: '#c0392b', shape: 'square', maxHp: 5800, maxMana: 999, speed: 140,
+    baseHp: 5800,
     deathVfx: 'boss_juggernaut_death',
     appearance: {
       size: '巨大 (約玩家 2.2 倍)，厚重',

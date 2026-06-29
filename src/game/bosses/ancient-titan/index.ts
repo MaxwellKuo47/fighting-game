@@ -6,8 +6,8 @@ import { loadVfx } from './vfx.ts';
 
 const data = {
     id: 104, round: 5, name: '廢墟古代巨兵', subtitle: '機關核心',
-    color: '#95a5a6', shape: 'square', maxHp: 6000, maxMana: 999, speed: 90,
-    baseHp: 6000,
+    color: '#95a5a6', shape: 'square', maxHp: 7300, maxMana: 999, speed: 90,
+    baseHp: 7300,
     deathVfx: 'boss_titan_death',
     appearance: {
       size: '極巨大 (約玩家 3 倍，全場最大)',

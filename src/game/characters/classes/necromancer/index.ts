@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { BaseCharacter } from '../../BaseCharacter.ts';
 import { characterSprite } from '../../textureSprite.ts';
-import { drawNecromancerTexture } from './texture.ts';
+import { drawNecromancerTexture, drawNecromancerMaterialTexture } from './texture.ts';
 import { modelConfig, buildModel, buildWeapon } from './model.ts';
 import './vfx.ts';
 
@@ -25,6 +25,7 @@ export class NecromancerCharacter extends BaseCharacter {
       buildModel,
       buildWeapon,
       paintTexture: drawNecromancerTexture,
+      paintMaterialTexture: drawNecromancerMaterialTexture,
       loadVfx: () => undefined,
     });
   }

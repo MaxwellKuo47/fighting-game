@@ -8,10 +8,11 @@ export function buildPaladinWeapon(hand, ctx) {
   const kit = createWeaponKit(hand, ctx);
   const { reg, mat, add } = kit;
 
-  // 明顯斜舉：錘頭朝右側上方揚起、突出於身形輪廓外，讓錘子從背後視角也看得到。
-  hand.rotation.set(0.95, 0, -0.35);
-  hand.position.x += 2.0;
-  hand.position.y += 3.0;
+  // 扛肩姿態：錘頭朝上、微微後傾揚於右肩上方（錘頭在上、握把在下），
+  // 抬高使錘頭高過肩甲、成為清楚的一把舉錘，且方向自然（不再側伸下垂）。
+  hand.rotation.set(0, 0, 0.22);
+  hand.position.x += 1.0;
+  hand.position.y += 9.0;
 
   const goldTex = ctx.materialTex ? ctx.materialTex('metal', 'gold') : null;
   const steelTex = ctx.materialTex ? ctx.materialTex('steel', 'steel') : null;
@@ -26,13 +27,13 @@ export function buildPaladinWeapon(hand, ctx) {
   // 底部金劍首
   add(new THREE.Mesh(new THREE.SphereGeometry(2.6, 10, 8), goldMat), 0, -8, 0);
 
-  // ── 厚重錘頭（明顯放大）──
-  const hy = 20;
-  add(new THREE.Mesh(new THREE.BoxGeometry(14, 13, 13), steelMat), 0, hy, 0);        // 主體
-  add(new THREE.Mesh(new THREE.BoxGeometry(15, 4.2, 15), goldMat), 0, hy, 0);        // 金箍（橫）
-  add(new THREE.Mesh(new THREE.BoxGeometry(4.6, 13.4, 15), goldMat), 0, hy, 0);      // 金箍（縱）
-  add(new THREE.Mesh(new THREE.BoxGeometry(2.6, 11, 11), goldMat), 7.6, hy, 0);      // 前敲擊面
-  add(new THREE.Mesh(new THREE.OctahedronGeometry(2.6, 0), gemMat), 9.2, hy, 0);     // 敲擊面紅寶石
-  add(new THREE.Mesh(new THREE.ConeGeometry(2.6, 9, 6), goldMat), 0, hy + 9, 0);     // 頂尖
-  add(new THREE.Mesh(new THREE.ConeGeometry(2.2, 8, 4), goldMat), -8.5, hy, 0, 0, 0, Math.PI / 2); // 背面尖爪
+  // ── 厚重錘頭（再放大）──
+  const hy = 21;
+  add(new THREE.Mesh(new THREE.BoxGeometry(18, 16, 16), steelMat), 0, hy, 0);        // 主體
+  add(new THREE.Mesh(new THREE.BoxGeometry(19, 5, 19), goldMat), 0, hy, 0);          // 金箍（橫）
+  add(new THREE.Mesh(new THREE.BoxGeometry(5.6, 16.4, 19), goldMat), 0, hy, 0);      // 金箍（縱）
+  add(new THREE.Mesh(new THREE.BoxGeometry(3.0, 13, 13), goldMat), 9.6, hy, 0);      // 前敲擊面
+  add(new THREE.Mesh(new THREE.OctahedronGeometry(3.0, 0), gemMat), 11.6, hy, 0);    // 敲擊面紅寶石
+  add(new THREE.Mesh(new THREE.ConeGeometry(3.0, 11, 6), goldMat), 0, hy + 11, 0);   // 頂尖
+  add(new THREE.Mesh(new THREE.ConeGeometry(2.6, 9, 4), goldMat), -10.5, hy, 0, 0, 0, Math.PI / 2); // 背面尖爪
 }

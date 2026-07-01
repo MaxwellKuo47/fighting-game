@@ -95,32 +95,34 @@ export function buildModel(ctx) {
   gorget.position.y = TOP + torsoH * 0.04;
   torso.add(gorget);
 
-  // ---- 巨大黃金鑲寶肩甲（±Z）----
+  // ---- 圓弧黃金肩甲：罩住肩頭並向下垂，而非水平外突的層板 ----
   const buildPauldron = (sign) => {
     const g = new THREE.Group();
-    g.position.set(0, TOP + 1.5, sign * shoulderX * 0.92);
-    // 三段層疊甲片，外緣下垂
-    const tiers = [
-      [torsoD * 0.62, 4.2, torsoW * 0.30, 0, 0],
-      [torsoD * 0.54, 4.0, torsoW * 0.26, -4.2, sign * 0.12],
-      [torsoD * 0.44, 3.6, torsoW * 0.22, -8.0, sign * 0.24],
-    ];
-    for (const [w, h, d, dy, rz] of tiers) {
-      const plate = box(w, h, d, goldMat);
-      plate.position.set(torsoD * 0.05, dy, sign * 2.0);
-      plate.rotation.x = sign * -0.06;
-      plate.rotation.z = rz;
-      g.add(plate);
-    }
-    // 肩頭圓帽
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(torsoW * 0.17, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), goldMat);
-    cap.position.set(torsoD * 0.05, 3.0, sign * 1.5);
-    cap.castShadow = true;
-    g.add(cap);
-    // 肩甲紅寶石
-    const g2 = gem(3.2);
-    g2.position.set(torsoD * 0.32, 0.5, sign * 2.0);
-    g.add(g2);
+    g.position.set(0, TOP - 1, sign * shoulderX);
+    const R = torsoW * 0.26;
+    // 主圓頂（半球）
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(R, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), goldMat);
+    dome.scale.set(1.0, 1.12, 1.08);
+    dome.position.y = 2;
+    dome.castShadow = true;
+    g.add(dome);
+    // 下垂第二層甲片（下寬上窄，罩住上臂）
+    const flare = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.72, R * 0.98, 6, 16, 1, true), goldMat);
+    flare.position.y = -3;
+    flare.scale.set(1.06, 1, 1.12);
+    flare.castShadow = true;
+    g.add(flare);
+    // 鋼緣滾邊
+    const trim = new THREE.Mesh(new THREE.TorusGeometry(R * 0.95, 0.8, 6, 22), steelMat);
+    trim.rotation.x = Math.PI / 2;
+    trim.position.y = -0.4;
+    trim.scale.set(1.06, 1.12, 1);
+    trim.castShadow = true;
+    g.add(trim);
+    // 正面紅寶石
+    const gm = gem(2.9);
+    gm.position.set(R * 0.72, 1.5, 0);
+    g.add(gm);
     return g;
   };
   torso.add(buildPauldron(-1));
@@ -227,32 +229,26 @@ export function buildModel(ctx) {
   rim.castShadow = true;
   head.add(rim);
 
-  // ---- 黃金面甲（框住臉部的金色柵條）----
-  const browBar = box(2.6, 2.8, 15, goldMat);
-  browBar.position.set(9.0, 4.2, 0);
+  // ---- 簡潔銀鋼面甲：只留眉樑 + 鼻樑（T 形），避免柵欄／橘糊感 ----
+  // （銀鋼在黑兜帽陰影下比暗金更清晰，不會糊成一片橘色。）
+  const browBar = box(2.2, 2.2, 12, steelMat);
+  browBar.position.set(9.7, 3.4, 0);
+  browBar.rotation.z = 0.05;
   head.add(browBar);
-  const noseGuard = box(2.8, 12, 3.2, goldMat);
-  noseGuard.position.set(9.4, -2.2, 0);
+  const noseGuard = box(2.4, 6.5, 2.2, steelMat);
+  noseGuard.position.set(9.8, -0.4, 0);
   head.add(noseGuard);
-  for (const z of [-5.4, 5.4]) {
-    const cheek = box(2.2, 11, 2.4, goldMat);
-    cheek.position.set(9.0, -2.6, z);
-    head.add(cheek);
-  }
-  const chinBar = box(2.2, 2.4, 12, goldMat);
-  chinBar.position.set(8.4, -8.6, 0);
-  head.add(chinBar);
 
-  // 額前小聖十字 + 紅寶石
-  const fcV = box(1.4, 4.2, 1.4, goldMat); fcV.position.set(9.4, 8.4, 0); head.add(fcV);
-  const fcH = box(1.4, 1.4, 4.2, goldMat); fcH.position.set(9.4, 9.4, 0); head.add(fcH);
-  const foreGem = gem(1.7); foreGem.position.set(9.9, 8.4, 0); head.add(foreGem);
+  // 額前小聖十字 + 紅寶石（兜帽正面的信仰徽記）
+  const fcV = box(1.4, 4.0, 1.4, goldMat); fcV.position.set(9.7, 8.2, 0); head.add(fcV);
+  const fcH = box(1.4, 1.4, 4.0, goldMat); fcH.position.set(9.7, 9.1, 0); head.add(fcH);
+  const foreGem = gem(1.6); foreGem.position.set(10.1, 8.2, 0); head.add(foreGem);
 
-  // ---- 緋紅雙眸（掛在臉部平面容器 faceGroup）----
-  for (const z of [-3.4, 3.4]) {
-    const eye = box(2.4, 1.6, 2.6, eyeMat);
-    eye.position.set(9.0, 1.2, z);
-    eye.rotation.z = z < 0 ? 0.18 : 0.18; // 微微上挑，凶悍
+  // ---- 緋紅雙眸：大而明亮，作為臉部焦點（凸出於臉面，清楚可見）----
+  for (const s of [-1, 1]) {
+    const eye = box(3.0, 2.2, 3.2, eyeMat);
+    eye.position.set(9.6, 0.8, s * 3.7);
+    eye.rotation.z = -0.18 * s; // 內低外高，凶悍
     faceGroup.add(eye);
   }
 

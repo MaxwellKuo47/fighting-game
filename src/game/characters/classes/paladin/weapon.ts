@@ -10,8 +10,8 @@ export function buildPaladinWeapon(hand, ctx) {
 
   // 斜舉：錘頭朝上、明顯往「前方」傾斜（角色面向 +X），像舉錘預備。
   // 錘頭在上、握把在下，抬高使錘頭高過肩甲。
-  hand.rotation.set(0, 0, -0.6);
-  hand.position.x += 2.0;
+  hand.rotation.set(0, 0, -0.82);
+  hand.position.x += 1.0;
   hand.position.y += 6.0;
 
   const goldTex = ctx.materialTex ? ctx.materialTex('metal', 'gold') : null;

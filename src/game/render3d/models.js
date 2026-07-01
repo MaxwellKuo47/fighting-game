@@ -24,7 +24,7 @@ import { WALK_THRESHOLD } from '../constants.js';
 import { buildDefault } from './classes/default.ts';
 import { getCharacterModelDef, getWeaponBuilder } from '../characters/render3d.ts';
 import { attachBossModelVisuals, updateBossModelVisuals } from '../bosses/render3d.ts';
-import { shade, mat, panelTexture, createHumanoidTexture } from './materials.js';
+import { shade, mat, characterMaterialTexture, createHumanoidTexture } from './materials.js';
 
 // 依原型加上肩甲與頭部配件 (回傳配件陣列，供 GLB 皮膚覆蓋時隱藏)。
 function buildAccents(group, reg, o) {
@@ -99,7 +99,8 @@ export function createCharacterModel(charId) {
   const skinKind = cfg.skinKind || (bossModel ? (bossModel.robe ? 'cloth' : 'metal') : 'cloth');
   const kRough = skinKind === 'metal' ? 0.35 : skinKind === 'leather' ? 0.55 : skinKind === 'cloth' ? 0.65 : 0.5;
   const kMetal = skinKind === 'metal' ? 0.8 : skinKind === 'leather' ? 0.25 : skinKind === 'cloth' ? 0.15 : 0.3;
-  const bodyTex = panelTexture(base, skinKind);
+  const materialTex = (kind = skinKind, variant = 'body') => characterMaterialTexture(charId, base, kind, variant);
+  const bodyTex = materialTex(skinKind, 'body');
 
   // 基礎材質快取供子模塊使用
   const defaultBodyMat = reg(mat(0xffffff, { rough: kRough, metal: kMetal, map: bodyTex }));
@@ -193,6 +194,7 @@ export function createCharacterModel(charId) {
     armLen,
     frontX,
     bodyTex,
+    materialTex,
     defaultBodyMat,
     defaultHeadMat,
     defaultArmMat,

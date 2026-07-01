@@ -1,4 +1,9 @@
 export type TexturePainter = (ctx: CanvasRenderingContext2D, size: number) => void;
+export type MaterialTexturePainter = (
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  meta: { kind?: string; variant?: string; baseHex?: string; charId?: string | number },
+) => void;
 
 export type CharacterLoaders = {
   modelConfig?: Record<string, unknown>;
@@ -6,6 +11,7 @@ export type CharacterLoaders = {
   buildWeapon?: (hand: any, ctx: any) => void;
   attachSkinGear?: (ctx: any) => void;
   paintTexture?: TexturePainter;
+  paintMaterialTexture?: MaterialTexturePainter;
   loadVfx?: () => void;
   tick?: (state: any, player: any, dt: number) => void;
 };
@@ -40,6 +46,14 @@ export class BaseCharacter {
 
   paintTexture(ctx: CanvasRenderingContext2D, size: number) {
     if (this.loaders.paintTexture) this.loaders.paintTexture(ctx, size);
+  }
+
+  paintMaterialTexture(
+    ctx: CanvasRenderingContext2D,
+    size: number,
+    meta: { kind?: string; variant?: string; baseHex?: string; charId?: string | number } = {},
+  ) {
+    if (this.loaders.paintMaterialTexture) this.loaders.paintMaterialTexture(ctx, size, meta);
   }
 
   loadVfx() {

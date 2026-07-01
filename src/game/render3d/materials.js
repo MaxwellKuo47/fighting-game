@@ -3,7 +3,7 @@
 // 純函式：僅依賴 three 與角色貼圖繪製器。canvas 程序貼圖以 _texCache 快取避免重複建立。
 // 注意：panelTexture / createHumanoidTexture 會用到 document(canvas)，僅在瀏覽器/渲染端呼叫。
 import * as THREE from 'three';
-import { getCharacterTexturePainter } from '../characters/render3d.ts';
+import { getCharacterMaterialTexturePainter, getCharacterTexturePainter } from '../characters/render3d.ts';
 
 // 顏色提亮(f>0)/壓暗(f<0)。
 export function shade(hex, f) {
@@ -67,15 +67,7 @@ export function panelTexture(baseHex, kind) {
   return tex;
 }
 
-// 動態繪製具有職業特色的 Canvas 材質貼圖（512px，套用角色專屬 painter）。
-export function createHumanoidTexture(charId, baseHex) {
-  const key = `humanoid:${charId}:${baseHex}`;
-  if (_texCache.has(key)) return _texCache.get(key);
-
-  const S = 512;
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = S;
-  const x = cv.getContext('2d');
+function paintTextureBase(x, S, baseHex) {
   const col = new THREE.Color(baseHex);
   const hex = (c) => `#${c.getHexString()}`;
 
@@ -85,14 +77,36 @@ export function createHumanoidTexture(charId, baseHex) {
   grad.addColorStop(1, hex(col.clone().multiplyScalar(0.4)));
   x.fillStyle = grad;
   x.fillRect(0, 0, S, S);
+}
+
+// 角色級 3D 材質貼圖：角色可提供專屬 material painter；否則沿用 portrait/sprite painter；再否則使用 panelTexture。
+export function characterMaterialTexture(charId, baseHex, kind = 'cloth', variant = 'body') {
+  const materialPaint = getCharacterMaterialTexturePainter(charId);
+  const spritePaint = getCharacterTexturePainter(charId);
+  if (!materialPaint && !spritePaint) return panelTexture(baseHex, kind);
+
+  const size = materialPaint ? 512 : 256;
+  const key = `character-material:${charId}:${baseHex}:${kind}:${variant}:${size}`;
+  if (_texCache.has(key)) return _texCache.get(key);
+
+  const S = size;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  const x = cv.getContext('2d');
+  paintTextureBase(x, S, baseHex);
 
   x.lineWidth = 4;
-  const paint = getCharacterTexturePainter(charId);
-  if (paint) paint(x, S);
+  if (materialPaint) materialPaint(x, S, { kind, variant, baseHex, charId });
+  else if (spritePaint) spritePaint(x, S);
 
   const tex = new THREE.CanvasTexture(cv);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.anisotropy = 4;
   _texCache.set(key, tex);
   return tex;
+}
+
+// 動態繪製具有職業特色的 Canvas 材質貼圖（512px，套用角色專屬 painter）。
+export function createHumanoidTexture(charId, baseHex) {
+  return characterMaterialTexture(charId, baseHex, 'skin', 'humanoid');
 }

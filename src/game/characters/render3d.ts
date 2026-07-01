@@ -24,5 +24,10 @@ export function getWeaponBuilder(type: string) {
 
 export function getCharacterTexturePainter(charId: string | number) {
   const character = BY_SLUG.get(charId as string);
-  return character ? character.paintTexture.bind(character) : null;
+  return character?.loaders?.paintTexture ? character.paintTexture.bind(character) : null;
+}
+
+export function getCharacterMaterialTexturePainter(charId: string | number) {
+  const character = BY_SLUG.get(charId as string);
+  return character?.loaders?.paintMaterialTexture ? character.paintMaterialTexture.bind(character) : null;
 }

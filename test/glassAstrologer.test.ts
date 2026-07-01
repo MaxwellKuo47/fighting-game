@@ -63,12 +63,27 @@ function addMirror(state, patch = {}) {
 }
 
 describe('glass astrologer mirror geometry', () => {
-  it('places at most three mirrors and removes the oldest when placing a fourth', () => {
+  it('places paired mirrors for the side shards and removes the oldest pair when full', () => {
     const state = buildState();
     const caster = state.players.glass;
     const action = glass().skill1;
 
     executeAction(state, caster, action, { source: 'skill1' });
+    let live = mirrors(state);
+    expect(live.length).toBe(2);
+    expect(live[0].x).toBeCloseTo(caster.x + Math.cos(-0.3) * action.range, 5);
+    expect(live[0].y).toBeCloseTo(caster.y + Math.sin(-0.3) * action.range, 5);
+    expect(live[0].angle).toBeCloseTo(Math.PI / 2 - 0.15, 5);
+    expect(live[1].x).toBeCloseTo(caster.x + Math.cos(0.3) * action.range, 5);
+    expect(live[1].y).toBeCloseTo(caster.y + Math.sin(0.3) * action.range, 5);
+    expect(live[1].angle).toBeCloseTo(Math.PI / 2 + 0.15, 5);
+    for (const [i, offset] of [-0.3, 0.3].entries()) {
+      const incoming = { x: Math.cos(offset), y: Math.sin(offset) };
+      const reflected = reflectDir(incoming, live[i]);
+      expect(reflected.x).toBeCloseTo(-1, 5);
+      expect(reflected.y).toBeCloseTo(0, 5);
+    }
+
     state.time += 1;
     caster.facing = 0.4;
     executeAction(state, caster, action, { source: 'skill1' });
@@ -79,12 +94,12 @@ describe('glass astrologer mirror geometry', () => {
     caster.facing = 1.2;
     executeAction(state, caster, action, { source: 'skill1' });
 
-    const live = mirrors(state);
-    expect(live.length).toBe(3);
+    live = mirrors(state);
+    expect(live.length).toBe(4);
     expect(action.cd).toBe(2.4);
     expect(action.manaCost).toBe(8);
     expect(live.every((m) => m.charges === 6 && m.lifetime <= 9)).toBe(true);
-    expect(live.map((m) => m.createdAt)).toEqual([1, 2, 3]);
+    expect(live.map((m) => m.createdAt)).toEqual([2, 2, 3, 3]);
   });
 
   it('direct star shard deals damage but does not add glassmark', () => {
@@ -165,29 +180,39 @@ describe('glass astrologer mirror geometry', () => {
     expect(mirrors(state)[0].charges).toBe(6);
   });
 
-  it('folded starlight fires eight radial beam pulses and marks on reflected hits', () => {
+  it('folded starlight pushes mirrors outward, turns them inward, and keeps radial pulses', () => {
     const state = buildState();
     const caster = state.players.glass;
-    const target = state.players.target;
-    target.x = 520;
-    target.y = 250;
-    addMirror(state, { x: 520, y: 400, angle: -Math.PI / 4, length: 260 });
+    const mirror = addMirror(state, { x: 520, y: 400, angle: -Math.PI / 4, length: 260 });
 
     executeAction(state, caster, glass().skill2, { source: 'skill2' });
     expect(caster.glassBeam?.remaining).toBe(0.75);
-    expect(target.maxHp - target.hp).toBe(0);
+    expect(mirror.x).toBeCloseTo(660, 5);
+    expect(mirror.y).toBeCloseTo(400, 5);
+    const tangent = { x: Math.cos(mirror.angle), y: Math.sin(mirror.angle) };
+    const toCaster = { x: caster.x - mirror.x, y: caster.y - mirror.y };
+    const toCasterLen = Math.hypot(toCaster.x, toCaster.y) || 1;
+    expect(Math.abs(tangent.x * (toCaster.x / toCasterLen) + tangent.y * (toCaster.y / toCasterLen))).toBeLessThan(1e-6);
 
     glass().tick(state, caster, 0.26);
     const rayFx = state.fx.filter((fx) => fx.vfx === 'glass_astrologer_ray' && fx.ray && fx.x1 != null && fx.y1 != null && fx.x2 != null && fx.y2 != null);
     const originRayFx = rayFx.filter((fx) => Math.abs(fx.x1 - caster.x) < 1e-6 && Math.abs(fx.y1 - caster.y) < 1e-6);
     expect(originRayFx.length).toBe(8);
+  });
+
+  it('folded starlight can use the pushed inward-facing mirror for reflected marks', () => {
+    const state = buildState();
+    const caster = state.players.glass;
+    const target = state.players.target;
+    target.x = 250;
+    target.y = 400;
+    addMirror(state, { x: 520, y: 400, angle: -Math.PI / 4, length: 260 });
+
+    executeAction(state, caster, { ...glass().skill2, directionCount: 1 }, { source: 'skill2' });
+    glass().tick(state, caster, 0.26);
+
     expect(target.maxHp - target.hp).toBeCloseTo(glass().skill2.pulseDmg * 1.35, 5);
     expect(target.effects.glassmark?.stacks).toBe(1);
-
-    const hpAfterFirst = target.hp;
-    glass().tick(state, caster, 0.25);
-    expect(hpAfterFirst - target.hp).toBeCloseTo(glass().skill2.pulseDmg * 1.35 + glass().skill2.markBonusPerStack, 5);
-    expect(target.effects.glassmark?.stacks).toBe(2);
   });
 
   it('kaleidoscope creates a front/back mirror array and fires an empowered splitting shard', () => {
@@ -298,6 +323,6 @@ describe('glass astrologer mirror geometry', () => {
     }
 
     expect(mirrors(state).filter((m) => m.owner === 'glass' && m.ultimateMirror).length).toBe(14);
-    expect(mirrors(state).filter((m) => m.owner === 'glass' && !m.ultimateMirror).length).toBe(3);
+    expect(mirrors(state).filter((m) => m.owner === 'glass' && !m.ultimateMirror).length).toBe(4);
   });
 });

@@ -1,8 +1,10 @@
 import { addFx } from '../../../../../entities/fx.ts';
+import { pushMirrorsOutward } from '../../mirrors.ts';
 import type { ActionContext } from '../../../../../types';
 
 export function glass_beam(ctx: ActionContext) {
   const { state, caster, action } = ctx;
+  pushMirrorsOutward(state, caster.id, caster.x, caster.y, action);
   caster.glassBeam = {
     remaining: action.duration || 3,
     tick: action.tick || 0.25,

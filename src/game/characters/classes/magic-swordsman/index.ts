@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { BaseCharacter } from '../../BaseCharacter.ts';
 import { characterSprite } from '../../textureSprite.ts';
-import { drawMagicSwordsmanTexture } from './texture.ts';
+import { drawMagicSwordsmanTexture, drawMagicSwordsmanMaterialTexture } from './texture.ts';
 import { modelConfig, buildModel, buildWeapon } from './model.ts';
 import { tickMagicSwordsman } from './talent.ts';
 import './vfx.ts';
@@ -27,6 +27,7 @@ export class MagicSwordsmanCharacter extends BaseCharacter {
       buildModel,
       buildWeapon,
       paintTexture: drawMagicSwordsmanTexture,
+      paintMaterialTexture: drawMagicSwordsmanMaterialTexture,
       loadVfx: () => undefined,
       tick: tickMagicSwordsman,
     });

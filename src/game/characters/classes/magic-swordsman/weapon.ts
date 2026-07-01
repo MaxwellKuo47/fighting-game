@@ -13,6 +13,9 @@ export function buildMagicSwordsmanWeapon(hand, ctx) {
   // Create sub-groups for blade and hilt/guard
   const bladeGroup = new THREE.Group();
   bladeGroup.name = 'magic-sword-blade';
+  // Position bladeGroup at the top of the hilt guard/brace (Y = 25)
+  // to ensure that stretching scales the blade outward from the guard without drifting.
+  bladeGroup.position.set(3, 25, 0);
   hand.add(bladeGroup);
 
   const hiltGroup = new THREE.Group();
@@ -39,72 +42,73 @@ export function buildMagicSwordsmanWeapon(hand, ctx) {
     return m;
   };
 
+  // ── 取得材質貼圖 ──
+  const steelTex = ctx.materialTex ? ctx.materialTex('steel', 'metal') : null;
+  const armorTex = ctx.materialTex ? ctx.materialTex('metal', 'armor') : null;
+  const glassTex = ctx.materialTex ? ctx.materialTex('glass', 'gem') : null;
+
   // ── 精緻材質定義 ──
-  // 青藍水晶刀刃
-  const cyanCrystal = reg(mat('#00f3ff', { emissive: new THREE.Color('#00d2ff'), ei: 3.2, rough: 0.1, metal: 0.5, transparent: true, opacity: 0.85 }));
+  // 青藍半透明發光水晶刀刃
+  const cyanCrystal = reg(mat('#00f3ff', { map: glassTex, emissive: new THREE.Color('#00d2ff'), ei: 2.2, rough: 0.15, metal: 0.5, transparent: true, opacity: 0.85 }));
   // 核心強光
   const brightCore = reg(mat('#ffffff', { emissive: new THREE.Color('#e0ffff'), ei: 4.8, rough: 0.05, metal: 0.2 }));
-  // 護手翡翠綠寶石
-  const emeraldGem = reg(mat('#00ff88', { emissive: new THREE.Color('#00ff88'), ei: 3.8, rough: 0.1, metal: 0.2 }));
-  // 金色裝甲
-  const goldMetal = reg(mat('#ffd700', { rough: 0.18, metal: 0.9 }));
-  // 暗鋼加固件/把手
-  const darkSteel = reg(mat('#12132e', { rough: 0.6, metal: 0.7 }));
+  // 護手星海藍寶石
+  const sapphireGem = reg(mat('#0055ff', { map: glassTex, emissive: new THREE.Color('#0033aa'), ei: 3.2, rough: 0.1, metal: 0.2 }));
+  // 冷銀裝飾
+  const steelMetal = reg(mat('#d2d5db', { map: steelTex, rough: 0.18, metal: 0.9 }));
+  // 暗鋼把手與防護夾
+  const darkSteel = reg(mat('#12132e', { map: armorTex, rough: 0.6, metal: 0.7 }));
 
-  // ── 巨型劍刃 (高約 80 單位，寬度厚度均大幅增加，跟角色一樣大) ──
-  // 主劍刃 (水晶主體)
+  // ── 巨型劍刃 (高約 80 單位，保持原本巨大的威嚴比例) ──
   const bladeMain = new THREE.Mesh(new THREE.BoxGeometry(8.5, 52, 3.2), cyanCrystal);
-  addBlade(bladeMain, 3, 26, 0);
+  addBlade(bladeMain, 0, 26, 0);
 
-  // 劍尖 (水晶劍尖)
   const bladeTip = new THREE.Mesh(new THREE.ConeGeometry(5.0, 24, 4), cyanCrystal);
-  addBlade(bladeTip, 3, 64, 0, 0, Math.PI / 4, 0);
+  addBlade(bladeTip, 0, 64, 0, 0, Math.PI / 4, 0);
 
   // ── 劍刃中央流光核心 (白色強光 core) ──
   const coreGlow = new THREE.Mesh(new THREE.BoxGeometry(1.6, 75, 0.8), brightCore);
-  addBlade(coreGlow, 3, 28, 0);
+  addBlade(coreGlow, 0, 28, 0);
 
-  // ── 劍刃兩側加固暗鋼甲 (Exquisite brace with gold trims near hilt) ──
-  const brace = new THREE.Mesh(new THREE.BoxGeometry(9.6, 14, 4.0), darkSteel);
-  addHilt(brace, 3, 7, 0);
+  // ── 劍刃底部加固暗鋼甲 (縮小比例以匹配細長手柄，更顯精緻) ──
+  const brace = new THREE.Mesh(new THREE.BoxGeometry(6.8, 14, 2.8), darkSteel);
+  addHilt(brace, 3, 25, 0);
 
-  const braceGold1 = new THREE.Mesh(new THREE.BoxGeometry(10.0, 1.5, 4.4), goldMetal);
-  addHilt(braceGold1, 3, 13, 0);
+  const braceSteel1 = new THREE.Mesh(new THREE.BoxGeometry(7.2, 1.5, 3.2), steelMetal);
+  addHilt(braceSteel1, 3, 31, 0);
 
-  const braceGold2 = new THREE.Mesh(new THREE.BoxGeometry(10.0, 1.5, 4.4), goldMetal);
-  addHilt(braceGold2, 3, 1, 0);
+  const braceSteel2 = new THREE.Mesh(new THREE.BoxGeometry(7.2, 1.5, 3.2), steelMetal);
+  addHilt(braceSteel2, 3, 19, 0);
 
-  // ── 護手：金色雙翼羽翼護手 ──
-  const guardL = new THREE.Mesh(new THREE.BoxGeometry(11, 4.2, 2.5), goldMetal);
-  addHilt(guardL, 3, -5, -6.5, 0.35, 0, 0);
+  // ── 護手 (橫向收窄，比例更靈巧，冷銀羽翼風格) ──
+  const guardL = new THREE.Mesh(new THREE.BoxGeometry(8.5, 3.2, 1.8), steelMetal);
+  addHilt(guardL, 3, 13, -5.0, 0.35, 0, 0);
 
-  const guardR = new THREE.Mesh(new THREE.BoxGeometry(11, 4.2, 2.5), goldMetal);
-  addHilt(guardR, 3, -5, 6.5, -0.35, 0, 0);
+  const guardR = new THREE.Mesh(new THREE.BoxGeometry(8.5, 3.2, 1.8), steelMetal);
+  addHilt(guardR, 3, 13, 5.0, -0.35, 0, 0);
 
-  // 護手中段暗鋼基座
-  const guardCenter = new THREE.Mesh(new THREE.BoxGeometry(5.5, 6.0, 5.5), darkSteel);
-  addHilt(guardCenter, 3, -5, 0);
+  const guardCenter = new THREE.Mesh(new THREE.BoxGeometry(4.2, 4.8, 4.2), darkSteel);
+  addHilt(guardCenter, 3, 13, 0);
 
-  // 護手中心翡翠綠寶石 (對應原畫中心的綠寶石 eye 細節)
-  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(4.0, 0), emeraldGem);
-  addHilt(gem, 3, -5, 0);
+  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(2.8, 0), sapphireGem);
+  addHilt(gem, 3, 13, 0);
 
-  // ── 握柄與劍首 ──
-  // 雙手大劍長把手 (深色皮革鋼骨)
-  const grip = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.6, 26, 8), darkSteel);
-  addHilt(grip, 3, -20, 0);
+  // ── 握柄與劍首 (細長化手柄，手感更佳) ──
+  // 把手半徑從 2.5 縮小至 1.3，手持部分比例更完美
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.35, 26, 8), darkSteel);
+  addHilt(grip, 3, -2, 0);
 
-  // 握柄防滑螺旋金色環裝飾
+  // 細長防滑冷銀裝飾圈
   for (let i = 0; i < 3; i++) {
-    const gripRing = new THREE.Mesh(new THREE.TorusGeometry(2.8, 0.5, 6, 12), goldMetal);
-    addHilt(gripRing, 3, -12 - i * 6, 0, Math.PI / 2, 0, 0);
+    const gripRing = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.3, 6, 12), steelMetal);
+    addHilt(gripRing, 3, 6 - i * 6, 0, Math.PI / 2, 0, 0);
   }
 
-  // 金色劍首
-  const pommel = new THREE.Mesh(new THREE.SphereGeometry(3.6, 8, 8), goldMetal);
-  addHilt(pommel, 3, -34, 0);
+  // 縮小的冷銀劍首
+  const pommel = new THREE.Mesh(new THREE.SphereGeometry(2.4, 8, 8), steelMetal);
+  addHilt(pommel, 3, -16, 0);
 
   // 劍首末端發光青藍水晶
-  const pommelGem = new THREE.Mesh(new THREE.OctahedronGeometry(2.0, 0), cyanCrystal);
-  addHilt(pommelGem, 3, -37, 0);
+  const pommelGem = new THREE.Mesh(new THREE.OctahedronGeometry(1.3, 0), cyanCrystal);
+  addHilt(pommelGem, 3, -19, 0);
 }

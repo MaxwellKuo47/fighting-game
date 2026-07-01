@@ -53,40 +53,40 @@ export function buildModel(ctx) {
   // ================= 軀幹 =================
   const torso = new THREE.Group();
 
-  // 黑袍底層（微微上窄下寬）
-  const body = cyl(torsoW * 0.34, torsoW * 0.40, torsoH * 1.02, 12, robeMat);
+  // 黑袍底層（收窄，讓前胸金鎧成為最外層而非被黑袍蓋住）
+  const body = cyl(torsoW * 0.30, torsoW * 0.35, torsoH * 1.02, 16, robeMat);
   torso.add(body);
 
-  // 黃金胸甲（正面）
-  const chest = box(torsoD * 0.52, torsoH * 0.66, torsoW * 0.56, goldMat);
-  chest.position.set(torsoD * 0.14, torsoH * 0.12, 0);
+  // 黃金胸鎧（包覆上半身，略寬於黑袍以確保金色明顯外露）
+  const chest = cyl(torsoW * 0.32, torsoW * 0.36, torsoH * 0.6, 18, goldMat);
+  chest.position.y = torsoH * 0.18;
   torso.add(chest);
+  const FRONT = torsoW * 0.35; // 胸鎧前緣（凸出面，用於聖十字/寶石）
 
-  // 胸口銀鋼盾板 + 聖十字
-  const shield = box(torsoD * 0.12, torsoH * 0.5, torsoW * 0.3, steelMat);
-  shield.position.set(FZ * 0.72, torsoH * 0.1, 0);
-  torso.add(shield);
-  const crossV = box(torsoD * 0.14, torsoH * 0.42, 2.6, goldMat);
-  crossV.position.set(FZ * 0.78, torsoH * 0.1, 0);
+  // 胸口銀鋼聖十字（大而顯眼，鑲於金胸鎧正面）
+  const crossV = box(3.2, torsoH * 0.5, 3.2, steelMat);
+  crossV.position.set(FRONT, torsoH * 0.16, 0);
   torso.add(crossV);
-  const crossH = box(torsoD * 0.14, 3.0, torsoW * 0.22, goldMat);
-  crossH.position.set(FZ * 0.78, torsoH * 0.22, 0);
+  const crossH = box(3.2, 3.6, torsoW * 0.28, steelMat);
+  crossH.position.set(FRONT, torsoH * 0.30, 0);
   torso.add(crossH);
 
-  // 腹甲兩段
+  // 腹甲兩段（金色收窄）
   for (let i = 0; i < 2; i++) {
-    const ab = box(torsoD * 0.44, torsoH * 0.12, torsoW * 0.44, goldMat);
-    ab.position.set(torsoD * 0.16, -torsoH * (0.16 + i * 0.16), 0);
+    const ab = cyl(torsoW * 0.29, torsoW * 0.30, torsoH * 0.12, 16, goldMat);
+    ab.position.y = -torsoH * (0.16 + i * 0.14);
     torso.add(ab);
   }
 
-  // 黃金腰帶 + 三顆紅寶石
-  const belt = cyl(torsoW * 0.42, torsoW * 0.42, torsoH * 0.16, 12, goldMat);
+  // 黃金腰帶 + 前緣三顆紅寶石
+  const belt = cyl(torsoW * 0.37, torsoW * 0.37, torsoH * 0.16, 16, goldMat);
   belt.position.y = -torsoH * 0.46;
   torso.add(belt);
-  for (const z of [-torsoW * 0.24, 0, torsoW * 0.24]) {
-    const g = gem(2.6);
-    g.position.set(FZ * 0.86, -torsoH * 0.46, z);
+  for (const z of [-torsoW * 0.2, 0, torsoW * 0.2]) {
+    const R = torsoW * 0.37;
+    const gx = Math.sqrt(Math.max(1, R * R - z * z)) + 0.3;
+    const g = gem(2.4);
+    g.position.set(gx, -torsoH * 0.46, z);
     torso.add(g);
   }
 
@@ -119,9 +119,19 @@ export function buildModel(ctx) {
     trim.scale.set(1.06, 1.12, 1);
     trim.castShadow = true;
     g.add(trim);
-    // 正面紅寶石
-    const gm = gem(2.9);
-    gm.position.set(R * 0.72, 1.5, 0);
+    // 頂部金尖刺（明顯突出於圓頂，向上外張，增添威嚴）
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(2.6, 11, 6), goldMat);
+    spike.position.set(-R * 0.1, R * 1.4, 0);
+    spike.rotation.x = -sign * 0.22;
+    spike.castShadow = true;
+    g.add(spike);
+    // 正面大紅寶石（金框鑲嵌）
+    const gemRing = new THREE.Mesh(new THREE.TorusGeometry(3.6, 0.9, 6, 16), goldMat);
+    gemRing.position.set(R * 0.72, 1.5, 0);
+    gemRing.rotation.y = Math.PI / 2;
+    g.add(gemRing);
+    const gm = gem(3.6);
+    gm.position.set(R * 0.74, 1.5, 0);
     g.add(gm);
     return g;
   };
@@ -187,68 +197,79 @@ export function buildModel(ctx) {
     torso.add(plate);
   }
 
-  // ================= 頭部：兜帽 + 黃金面甲 + 緋紅雙眸 =================
+  // ================= 頭部：兜帽武裝盔 + 黃金面甲 + 緋紅雙眸 =================
   const head = new THREE.Group();
 
+  // 亮金面甲材質：帶微暖自發光，讓黃金在兜帽陰影下仍讀得出金色、不糊成暗橘。
+  const faceGoldMat = reg(mat(GOLD, { map: goldTex, rough: 0.24, metal: 0.92, emissive: new THREE.Color('#4a330a'), ei: 0.55 }));
+
   // 陰影中的臉/頭底
-  const headCore = new THREE.Mesh(new THREE.SphereGeometry(10, 16, 14), voidMat);
+  const headCore = new THREE.Mesh(new THREE.SphereGeometry(9.6, 16, 14), voidMat);
   headCore.scale.set(0.95, 1.05, 0.95);
   headCore.castShadow = true;
   head.add(headCore);
 
-  // 黑色兜帽外殼（後推、上抬且拉長成蛋形，讓正面成為臉部開口）
-  const hood = new THREE.Mesh(new THREE.SphereGeometry(12.5, 18, 16), robeMat);
-  hood.position.set(-3.5, 2.5, 0);
-  hood.scale.set(0.9, 1.28, 1.02);
+  // 黑色兜帽外殼（拉長成尖頭兜帽，正面為臉部開口）
+  const hood = new THREE.Mesh(new THREE.SphereGeometry(12.5, 20, 18), robeMat);
+  hood.position.set(-3.2, 2.6, 0);
+  hood.scale.set(0.9, 1.3, 1.02);
   hood.castShadow = true;
   head.add(hood);
 
-  // 兜帽尖頂（後仰的錐形冠，塑造審判兜帽輪廓）
-  const crown = new THREE.Mesh(new THREE.ConeGeometry(6, 16, 10), robeMat);
-  crown.position.set(-2, 12, 0);
-  crown.rotation.z = 0.28; // 尖端向後傾
+  // 兜帽尖頂 + 黃金頂飾（審判兜帽的金色尖端）
+  const crown = new THREE.Mesh(new THREE.ConeGeometry(5.6, 15, 10), robeMat);
+  crown.position.set(-1.5, 12, 0);
+  crown.rotation.z = 0.24;
   crown.castShadow = true;
   head.add(crown);
+  const crownTip = new THREE.Mesh(new THREE.ConeGeometry(2.6, 7, 6), faceGoldMat);
+  crownTip.position.set(1.2, 19.5, 0);
+  crownTip.rotation.z = 0.24;
+  crownTip.castShadow = true;
+  head.add(crownTip);
 
-  // 兜帽後背的中脊接縫
-  const ridge = box(2.4, 20, 2.2, robeMat);
+  // 兜帽後背中脊接縫
+  const ridge = box(2.2, 20, 2.0, robeMat);
   ridge.position.set(-12, 2, 0);
   ridge.rotation.z = -0.12;
   head.add(ridge);
 
-  // 兜帽前緣壓低的眉簷（把臉罩入陰影）
-  const hoodBrow = box(6, 3.2, 17, robeMat);
-  hoodBrow.position.set(6.5, 7.4, 0);
-  hoodBrow.rotation.z = 0.18;
+  // 兜帽前緣壓低眉簷（把臉罩入陰影，襯托發光雙眸）
+  const hoodBrow = box(6, 3.0, 17, robeMat);
+  hoodBrow.position.set(6.2, 7.6, 0);
+  hoodBrow.rotation.z = 0.2;
   head.add(hoodBrow);
 
-  // 臉部開口的黃金鑲邊（框住臉孔，正面/斜側都能看見）
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(8.6, 1.1, 8, 22), goldMat);
-  rim.position.set(8.2, -1, 0);
-  rim.rotation.y = Math.PI / 2;
-  rim.castShadow = true;
-  head.add(rim);
-
-  // ---- 簡潔銀鋼面甲：只留眉樑 + 鼻樑（T 形），避免柵欄／橘糊感 ----
-  // （銀鋼在黑兜帽陰影下比暗金更清晰，不會糊成一片橘色。）
-  const browBar = box(2.2, 2.2, 12, steelMat);
-  browBar.position.set(9.7, 3.4, 0);
-  browBar.rotation.z = 0.05;
-  head.add(browBar);
-  const noseGuard = box(2.4, 6.5, 2.2, steelMat);
-  noseGuard.position.set(9.8, -0.4, 0);
-  head.add(noseGuard);
-
-  // 額前小聖十字 + 紅寶石（兜帽正面的信仰徽記）
-  const fcV = box(1.4, 4.0, 1.4, goldMat); fcV.position.set(9.7, 8.2, 0); head.add(fcV);
-  const fcH = box(1.4, 1.4, 4.0, goldMat); fcH.position.set(9.7, 9.1, 0); head.add(fcH);
-  const foreGem = gem(1.6); foreGem.position.set(10.1, 8.2, 0); head.add(foreGem);
-
-  // ---- 緋紅雙眸：大而明亮，作為臉部焦點（凸出於臉面，清楚可見）----
+  // ---- 黃金臉部框架（審判盔招牌）：兩側金柱 + 頂拱眉樑 + 下顎橫樑 ----
   for (const s of [-1, 1]) {
-    const eye = box(3.0, 2.2, 3.2, eyeMat);
-    eye.position.set(9.6, 0.8, s * 3.7);
-    eye.rotation.z = -0.18 * s; // 內低外高，凶悍
+    const pillar = box(2.2, 15, 2.2, faceGoldMat);
+    pillar.position.set(9.0, -1, s * 6.2);
+    head.add(pillar);
+  }
+  const arch = box(2.6, 2.8, 15, faceGoldMat);
+  arch.position.set(9.4, 5.6, 0);
+  head.add(arch);
+  const jaw = box(2.0, 2.2, 12.5, faceGoldMat);
+  jaw.position.set(8.4, -8.4, 0);
+  head.add(jaw);
+
+  // ---- 面甲縱向金柵（T2 招牌直柵條）----
+  for (const z of [-3.6, 0, 3.6]) {
+    const slat = box(1.5, 11, 1.4, faceGoldMat);
+    slat.position.set(9.4, -2.4, z);
+    head.add(slat);
+  }
+
+  // 額前小聖十字 + 紅寶石
+  const fcV = box(1.5, 4.2, 1.5, faceGoldMat); fcV.position.set(9.9, 8.6, 0); head.add(fcV);
+  const fcH = box(1.5, 1.5, 4.2, faceGoldMat); fcH.position.set(9.9, 9.5, 0); head.add(fcH);
+  const foreGem = gem(1.7); foreGem.position.set(10.3, 8.6, 0); head.add(foreGem);
+
+  // ---- 緋紅雙眸：位於金柵縫隙上方，強烈發光，凸出面甲成為視覺焦點 ----
+  for (const s of [-1, 1]) {
+    const eye = box(3.0, 2.4, 2.6, eyeMat);
+    eye.position.set(10.1, 2.4, s * 2.0);
+    eye.rotation.z = -0.2 * s;
     faceGroup.add(eye);
   }
 
